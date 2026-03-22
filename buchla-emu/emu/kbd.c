@@ -143,7 +143,37 @@ static void vid_key(SDL_KeyboardEvent *ev, bool dn)
 		sig = 60 + i;
 	}
 	else {
+		int32_t kp = -1;
+
 		switch (ev->keysym.sym) {
+		case SDLK_KP_0: kp = 0; break;
+		case SDLK_KP_1: kp = 1; break;
+		case SDLK_KP_2: kp = 2; break;
+		case SDLK_KP_3: kp = 3; break;
+		case SDLK_KP_4: kp = 4; break;
+		case SDLK_KP_5: kp = 5; break;
+		case SDLK_KP_6: kp = 6; break;
+		case SDLK_KP_7: kp = 7; break;
+		case SDLK_KP_8: kp = 8; break;
+		case SDLK_KP_9: kp = 9; break;
+		default: break;
+		}
+
+		if (kp >= 0) {
+			ver2("kbd kp %d %s", kp, dn ? "dn" : "up");
+			sig = 60 + kp;
+		}
+		else switch (ev->keysym.sym) {
+		case SDLK_MINUS:
+			ver2("kbd - %s", dn ? "dn" : "up");
+			sig = 68; /* same as key 8: decrease / flat */
+			break;
+
+		case SDLK_EQUALS:
+			ver2("kbd = %s", dn ? "dn" : "up");
+			sig = 69; /* same as key 9: increase / sharp */
+			break;
+
 		case SDLK_x:
 			ver2("kbd x %s", dn ? "dn" : "up");
 			sig = 70;

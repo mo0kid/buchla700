@@ -229,6 +229,303 @@ This produces `bios.abs` and `midas.abs` which should be copied into `buchla-emu
 
 ---
 
+## Using the Buchla 700
+
+*Adapted from the original 1989 Buchla 700 User's Guide by Buchla and Associates. References to physical hardware controls have been updated for the emulator and iPad controller.*
+
+### Getting Started
+
+1. Launch the emulator: `./buchla -a` (auto-boots into MIDAS VII)
+2. If using the iPad controller, ensure both devices are on the same network
+3. The emulator window shows the CRT display; the bottom section shows the LCD with button labels and fader assignments
+
+### MIDAS VII Overview
+
+**MIDAS VII** is the Buchla 700's high-level music language. It provides facilities for designing instruments, creating scores, building tuning tables, and managing performance assignments. While simple musical tasks are easily accomplished, the language accommodates increasingly sophisticated instrumental and musical concepts.
+
+MIDAS VII consists of several functional units, each with its own display:
+
+- **Instrument Designer** — Define sounds using oscillators, envelopes, FM routing, waveshaping, and filtering
+- **Waveshape Editor** — Create and modify waveshape transfer function tables
+- **Tuning Table Editor** — Define custom tuning systems (any scale imaginable)
+- **Assignment Table Editor** — Configure voice-to-group mappings, MIDI routing, and keyboard splits
+- **Score Editor** — Record, edit, and play back performances with a piano-roll display
+- **Patch Editor** — Create alternative performance environments with stimulus-response mappings
+- **Sequence Editor** — Program 16 software-based sequencers for repetitive or interactive processes
+- **Librarian** — Store and retrieve all data types to and from disk images
+
+### Navigation
+
+| Key / Action | Function |
+|-------------|----------|
+| **E** (left mouse button) | Enter / Execute / Confirm |
+| **M** (right mouse button) | Return to main menu (from any display) |
+| **X** | Delete |
+| **=** | Add / Enable / Scroll options forward (+) |
+| **-** | Decrease / Disable / Scroll options backward (-) |
+| **0-9** | Numeric data entry |
+| **Mouse** | Move the on-screen cursor (replaces the hardware cursor pad) |
+
+To access any MIDAS function: move the cursor to the desired menu item on the CRT display and press **E**.
+
+### The Librarian
+
+The librarian stores and retrieves data to and from disk images.
+
+**Loading an orchestra:**
+
+1. From the main menu, move the cursor to "Librarian" and press **E**
+2. Move the cursor to "Index" and press **E** to view disk contents
+3. Set the "Lo/Hi orch" field to choose where instruments load (toggle with **E**)
+4. Move cursor to the desired orchestra record and press **E**
+5. Confirm the selection and press **E** again to load
+6. Press **M** to return to the main menu
+
+**Disk management:**
+
+- Swap disk images at any time using **F5** (macOS file dialog) or drag-and-drop
+- The emulator creates a blank 720 KB FAT12 disk image during build (`buchla.disk`)
+- Always read the index after swapping disks
+
+### Instrument Designer
+
+The sonic output of the 700 is defined in the instrument designer. Access it from the main menu.
+
+#### Voice Architecture
+
+Each of the 12 voices contains:
+
+- **4 oscillators** — can contribute to output, modulate other elements, or both
+- **6 DCAs** (digitally controlled amplifiers) — establish amplitudes and modulation intensities
+- **2 waveshape tables** (A and B) — transfer functions for timbral shaping
+- **1 four-pole filter** (24 dB/octave) — with cutoff and resonance control
+- **1 VCA** — final output level controlled by dynamics
+
+Three types of modulation are available:
+
+| Type | Description |
+|------|-------------|
+| **A.M.** | Amplitude modulation |
+| **F.M.** | Frequency modulation |
+| **T.M.** | Timbre modulation (unique to Buchla instruments) |
+
+#### Signal Path
+
+```
+4 Oscillators → 6 DCAs (AM/FM/TM via configuration) → Waveshape A/B
+    → 24 dB/oct Filter (cutoff + resonance) → VCA (level × dynamics)
+    → Output (location, EQ, phase shift, aural excitation) → Stereo Out
+```
+
+#### Configurations
+
+**12 configurations** define the interconnection of oscillators, DCAs, and waveshape tables. In configuration diagrams: circles = oscillators, triangles = DCAs, squares = waveshape tables. DCAs connected to the bottom of oscillators route F.M.; DCAs pointing to the sides of other DCAs route T.M.
+
+To change configuration: enter a number (1-12) and press **E**. View all configurations by moving the cursor to "Config" and pressing **E**.
+
+#### Instrument Library
+
+The 700 stores **40 instrument definitions** organized into two banks:
+
+- **Lo orchestra**: Instruments 1-20
+- **Hi orchestra**: Instruments 21-40
+
+Plus a **default instrument** (number 0) that can be played but not edited.
+
+**12 voice slots** hold the instruments you can currently hear and edit. Copy instruments between the library and voice slots freely.
+
+A **red instrument number** warns that the current instrument has unsaved changes.
+
+#### Envelopes
+
+The upper half of the instrument display establishes envelopes for **13 parameters**:
+
+- 4 oscillator pitches (Freq 1-4)
+- 6 indices (Index 1-6)
+- Filter cutoff frequency
+- Stereo location
+- VCA level
+
+Envelopes consist of connected time-value segments (up to **128 total points** across all 13 envelopes). Value range: 0 to 10. Time range: 0.001 to 32 seconds, plotted on an exponential scale.
+
+**Graphical editing:**
+
+1. Move cursor near the desired point and press **E** (cursor turns pink)
+2. Drag the point to its new position
+3. Press **E** to confirm
+4. Create new points with **+**, delete with **X** in the "Pt" field
+
+**Conditional actions** can alter envelope playback:
+
+| Action | Effect |
+|--------|--------|
+| Sustain | Pause at a point while key is held |
+| Jump | Loop backwards/forwards a specified number of times |
+| Key state | Continue until key changes state |
+| Random GoTo | Jump to a random point within a range |
+
+#### Oscillator Pitch Modes
+
+| Mode | Description |
+|------|-------------|
+| **Frequency** | Fixed frequency (0-15.9 Hz), ignores controller and tuning |
+| **Pitch** | Fixed pitch from pedal C to C9 |
+| **Interval** | Offset from tuning table pitch in cents (1/100 semitone) |
+| **Ratio** | Frequency ratio (e.g., 4/3 = perfect fourth) |
+
+#### Sources and Multipliers
+
+Expressivity comes from mapping **sources** (performance gestures) to parameters via **multipliers**.
+
+| Source | MIDI Controller | iPad Controller |
+|--------|----------------|-----------------|
+| 1 | Pitch wheel | XY pad horizontal |
+| 2 | Modulation wheel | XY pad vertical |
+| 3 | Breath controller | — |
+| 4 | General purpose controller | — |
+| 5 | Pitch/Frequency (derived) | Pitch/Frequency |
+| 6 | Key velocity | — |
+| 7 | Key pressure (aftertouch) | Key Y-axis |
+| 8 | Random | Random |
+| 9 | Pedal 1 | — |
+
+**General sources** (far left fields) operate continuously once activated. **Point sources** (per-envelope-point) affect only their associated segment. Points with sources or conditional actions display in **yellow**.
+
+### Waveshape Editor
+
+Access from the main menu. The 700's waveshaping uses **transfer functions** — continuous input functions of varying amplitude pass through the table, producing rich timbral results.
+
+**Three editing methods:**
+
+1. **Point editing** — Move individual points vertically. Adjust brush width with **+**/**-** to affect adjacent points.
+2. **Interpolation** — Define inflection points and let MIDAS connect them. Set width to "interp", then place points with **E** and **+**.
+3. **Harmonic coefficients** — Specify harmonics directly (values -100 to +100). The magenta line shows the offset waveshape; the green line shows the sum.
+
+**Library:** 20 waveshape tables in memory. Store/fetch by entering a number (1-20) and selecting "store" or "fetch".
+
+### Tuning Tables
+
+The 700 supports **any tuning system**. 128 MIDI key addresses, each mapped to an arbitrary pitch.
+
+- **10 tables** in memory (0 = default, non-modifiable; 1-9 editable)
+- Pitches specified as: octave + note name + accidental + cents offset
+- Each semitone divided into **100 cents** (1200 cents per octave)
+
+**Automated operations:**
+
+| Operation | Description |
+|-----------|-------------|
+| Copy and transpose | Duplicate a range of pitches with a transposition |
+| Increment | Generate equal-interval scales |
+| Interpolate | Calculate intermediate pitches between two endpoints |
+
+### Assignment Tables
+
+Assignment tables configure which instruments play and how they are controlled. Voices are organized into **groups** (1-12 voices per group).
+
+- Voices within a group play **polyphonically** (in rotation)
+- Groups played simultaneously sound **in parallel**
+- Each group has: instrument assignment, dynamic level (0-9), controller source (MIDI port or local), and optional MIDI channel
+
+**Dynamic levels:**
+
+| Level | dB | Marking |
+|-------|-----|---------|
+| 9 | +6 | fff |
+| 6 | 0 | mf |
+| 3 | -6 | pp |
+| 0 | — | tacit |
+
+**Key-to-group matrix:** The lower display section maps keys to groups, enabling keyboard splits. Only applies to MIDI port 1.
+
+**99 assignment tables** can be stored (0 = default). Switch tables via MIDI program change or front panel selection.
+
+### LCD Fader Functions
+
+The 14 faders (slide controls on hardware, bar-graph faders on iPad) control voice parameters shown on the LCD. Their values are **added** to programmed envelope values but are **not stored** as part of instrument definitions.
+
+| Button | Function |
+|--------|----------|
+| **Quiet** | Reset system variables to defaults. Use to clear hung notes. |
+| **ROMP** | Debug monitor (kills MIDAS — requires reload) |
+| **Lamp** | Toggle LCD backlight (hardware only) |
+| **Clock** | Score clock control |
+| **P/R** | Play/Record toggle |
+| **GoTo** | Score position jump |
+| **Instr** | Select instruments for voice groups via performance keys |
+| **Asgmt** | Select assignment tables |
+| **Load** | Quick-load files from disk by letter (A-G) |
+| **Other** | Switch faders to auxiliary controls: Aux, Depth, Rate, Intensity, CV1-4 |
+| **Voice** | Select which voices the faders address |
+| **Init** | Reset fader offsets to zero (midpoint for Locn/Freq/Filtr; bottom for others) |
+
+### Score Editor
+
+The score editor captures performances and provides a **piano-roll display** for editing.
+
+**Creating a score:**
+
+1. Set up an assignment table with desired voice groups
+2. Open the score editor from the main menu
+3. Enable groups for recording (move cursor under asterisks, press **+** twice for red = record)
+4. Set record mode to "record"
+5. Start the clock (cursor on "clock", press **E**)
+6. Play — notes appear in the piano roll, color-coded by group
+
+**Score features:**
+
+- Up to **20 scores** in the library
+- Subdivided into **20 sections** each
+- Time measured in **beats and frames** (48 frames per beat)
+- Tempo: 4-240 BPM, adjustable with the Tempo Multiplier
+- Per-group: instrument, transpose (±1200 cents), dynamic level, stereo location
+- Analog source recording for performance gestures
+- Record modes: Play, Record, Overdub, PunchIn
+
+### Patch Editor
+
+The patch editor creates **stimulus-response mappings** for alternative performance environments.
+
+Each patch has:
+
+| Component | Required | Description |
+|-----------|----------|-------------|
+| **Stimulus** | Yes | Event that triggers the patch (key, pulse, trigger) |
+| **Destination** | Yes | Parameter to influence |
+| **Datum** | Yes | Value to send |
+| **Definer** | Optional | Event that activates the patch |
+
+Destinations include: keys, triggers, LED control, sequencer control, tuning tables, registers (1-16), voice parameters, output voltages, and phase shift parameters.
+
+### Sequence Editor
+
+**16 software-based sequencers** for repetitive patterns, parallel time bases, and interactive processes using registers.
+
+- **1000 lines** in the sequence table
+- Each line: delay time (0-99.99 seconds) + 3 action fields
+- Actions: trigger keys, control sequencers (start/stop/jump), set registers
+- Registers support: direct values, other registers, random values
+- Conditional execution: compare registers with =, <, >
+
+### Memory Limits
+
+| Resource | Maximum |
+|----------|---------|
+| Instruments | 40 (20 Lo + 20 Hi) |
+| Active voices | 12 |
+| Envelope points (total) | 128 |
+| Waveshape tables | 20 (library) + 24 (active) |
+| Tuning tables | 10 |
+| Assignment tables | 99 |
+| Scores | 20 |
+| Sequencers | 16 |
+| Sequence lines | 1000 |
+| Oscillators per voice | 4 |
+| DCAs per voice | 6 |
+| Configurations | 12 |
+
+---
+
 ## Acknowledgements
 
 This project is based on the work of the [Buchla Emulation Project](https://bob.lopatic.de/), which created the original open-source emulation of the Buchla 700 hardware. Their careful reverse-engineering and documentation of the 700's architecture made this project possible.
