@@ -40,16 +40,70 @@ A full-system emulator of the Buchla 700 hardware, including:
 
 ### Digital Sound Synthesis (DSP)
 
-The emulator includes a complete recreation of the Buchla 700 audio engine:
+The emulator includes a complete recreation of the Buchla 700 audio engine running at 48 kHz. All 12 voices are computed every sample with no oversampling.
 
-- 12 polyphonic voices, each with 4 oscillators
-- Frequency modulation (FM) with 12 routing configurations
-- Waveshaping via WSA/WSB lookup tables (254 words per table per voice)
-- 4-pole analog-modeled OTA ladder filter per voice
-- DC blocking and stereo panning
-- 16 envelope function generators per voice with interpolation
-- Global effects: phase shifter, 7-band graphic EQ (LMC835), aural exciter
-- 48 kHz, 16-bit stereo audio output
+#### Signal Chain
+
+```
+4 Oscillators (phase accumulators)
+    → FM Routing (12 configurations, 6 modulation indices)
+    → Waveshape Lookup (WSA + WSB tables, 254 entries each, linear interpolation)
+    → Mix (×0.2 gain)
+    → 4-Pole OTA Ladder Filter (variable cutoff & resonance)
+    → DC Blocking Filter (1st-order HPF at ~1.5 Hz)
+    → Equal-Power Panning
+    → Anti-Click Ramp (64 samples / ~1.3 ms)
+    → Level × Dynamics
+
+12 voices summed → Aural Exciter → Phase Shifter → 7-Band Graphic EQ
+    → Soft Clamp (±1.0) → Stereo Output
+```
+
+#### Oscillators
+
+Each voice has 4 independent oscillators using phase accumulators. Pitch values arrive from the FPU in half-cents and are converted to frequency via `hz = 8.1758 × 2^(pitch/2400)`, where 8.1758 Hz is MIDI C-1. Phase increments are computed as `2π × freq / 48000`.
+
+#### FM Modulation
+
+The 6 index values (Ind1-6) control modulation depth between oscillators. Raw FPU values (±32000) are normalized to ±1.0. The core FM operation is `sin(carrier_phase + modulator × index)`. Each of the 12 configurations defines a different routing topology — see the configurations table below.
+
+#### Waveshaper
+
+Two tables per voice (WSA and WSB), each containing 254 signed 16-bit entries. Input signals are clamped to [-1, +1], mapped to table indices, and linearly interpolated between adjacent entries. Default tables provide a linear identity mapping. The WSA and WSB outputs are summed with a 0.2 gain factor (~-14 dB) before entering the filter.
+
+#### Filter
+
+A 4-pole OTA (Operational Transconductance Amplifier) ladder filter modeled after mid-1980s Buchla analog designs. Uses zero-delay feedback (Zavalishin/Pirkle method) with `tanh()` soft saturation on the differential pair inputs. This provides self-stabilizing resonance with natural limiting — no digital blowup at high Q.
+
+- Cutoff range: 20 Hz to 23,040 Hz (Nyquist × 0.96)
+- Resonance range: 0.0 to 0.95 (feedback gain × 4.0, clamped below self-oscillation)
+- Bilinear pre-warping ensures accurate cutoff tuning at high frequencies
+- Thermal voltage constant (VT = 1.22) controls the saturation knee
+
+#### Panning and Level
+
+Equal-power panning using `cos/sin` quarter-wave curves maintains perceived loudness across the stereo field. Location values from the FPU (-32000 to +32000) map to full left through full right.
+
+Level and dynamics are multiplied together for final voice gain. A 64-sample linear ramp prevents clicks on note onset.
+
+#### Global Effects
+
+Three always-available stereo effects process the mixed output of all 12 voices:
+
+**Aural Exciter** — Extracts the 1-12 kHz band, generates 2nd and 3rd order harmonics via `s² × sign(s) × 2.0 + s³ × 0.5`, applies soft clipping (threshold 0.8), and mixes back with a 0.3 brightness boost. Always active.
+
+**Phase Shifter** — 8-stage cascaded all-pass filter with independent left/right tuning for stereo width. Driven by a blended LFO (70% soft sine + 30% triangle). Three parameters controlled via the front panel "Other" mode:
+- Intensity (depth of phase effect)
+- Rate (LFO speed, 0.1-5.0 Hz)
+- Depth (sweep range)
+
+Coefficients update every 256 samples for CPU efficiency. Base sweep frequencies: 300-3500 Hz (left), 240-2800 Hz (right). Output is 80% wet + 20% dry.
+
+**7-Band Stereo Graphic EQ** — Based on the LMC835 analog IC. Band frequencies: 50, 150, 400, 1k, 2.5k, 6k, 15k Hz. Band 1 is a low-shelf, bands 2-6 are peaking (Q=1.0), band 7 is a high-shelf. Each band provides ±12 dB of independent stereo gain.
+
+#### Parameter Smoothing
+
+All FPU function values are smoothed at audio rate using a one-pole low-pass filter (coefficient 0.05, ~0.4 ms time constant). This prevents zipper noise when parameters change and adapts its rate to the time scaling knob.
 
 ### Keyboard Shortcuts
 
@@ -322,6 +376,23 @@ Three types of modulation are available:
 **12 configurations** define the interconnection of oscillators, DCAs, and waveshape tables. In configuration diagrams: circles = oscillators, triangles = DCAs, squares = waveshape tables. DCAs connected to the bottom of oscillators route F.M.; DCAs pointing to the sides of other DCAs route T.M.
 
 To change configuration: enter a number (1-12) and press **E**. View all configurations by moving the cursor to "Config" and pressing **E**.
+
+Each configuration routes 4 oscillators (Osc1-4) through 6 index-controlled DCAs (Ind1-6) into two waveshape tables (WSA/WSB):
+
+| Config | Routing |
+|--------|---------|
+| **1** | Osc2→Ind1→Osc1→Ind3→WSA, Osc4→Ind2→WSA side; mirror via Ind4-6→WSB |
+| **2** | Cross-modulation: Osc2→Osc1→WSA, Osc4→Osc3→WSB, with side inputs from modulators |
+| **3** | Parallel paths with Osc1↔Osc4 feedback loop |
+| **4** | Side-chained: Osc3 modulates both Osc1 and Osc2; Osc4 drives both outputs |
+| **5** | Dual modulation with Osc2→Osc1→WSA; Ind1 unused, WSB driven by envelope directly |
+| **6** | Cross-coupled side chains: Osc4→Osc1→WSA, Osc2→Osc3→WSB with cross-feedback |
+| **7** | Dual output from single chain: Osc3→Osc2→Osc1→WSA and WSB simultaneously; Ind5 unused |
+| **8** | Multi-output Osc4: feeds both WSA and WSB paths; Osc3 unused |
+| **9** | Dual side-chain architecture: Osc2→Osc1→WSA, Osc3→Osc4→WSB with cross-modulation |
+| **10** | Circular modulation: Osc4→Osc1→WSA, Osc2→Osc3→WSB with Osc1→Osc4 and Osc3→Osc2 feedback |
+| **11** | Three oscillators sharing one modulator (Osc2): Osc2 modulates Osc1 and Osc3; Osc4 unused |
+| **12** | Triple-output: Osc3→Osc1 feeds both WSA and WSB; Osc1, Osc2, Osc4 as side-chain inputs |
 
 #### Instrument Library
 
