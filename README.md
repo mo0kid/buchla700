@@ -373,26 +373,26 @@ Three types of modulation are available:
 
 #### Configurations
 
-**12 configurations** define the interconnection of oscillators, DCAs, and waveshape tables. In configuration diagrams: circles = oscillators, triangles = DCAs, squares = waveshape tables. DCAs connected to the bottom of oscillators route F.M.; DCAs pointing to the sides of other DCAs route T.M.
+**12 configurations** (numbered 00-11) define the interconnection of oscillators, DCAs, and waveshape tables. In configuration diagrams: circles = oscillators, triangles = DCAs, squares = waveshape tables. DCAs connected to the bottom of oscillators route F.M.; DCAs pointing to the sides of other DCAs route T.M.
 
-To change configuration: enter a number (1-12) and press **E**. View all configurations by moving the cursor to "Config" and pressing **E**.
+To change configuration: enter the desired number and press **E**. View all configurations by moving the cursor to "Config" and pressing **E**.
 
-Each configuration routes 4 oscillators (Osc1-4) through 6 index-controlled DCAs (Ind1-6) into two waveshape tables (WSA/WSB):
+Each configuration routes 4 oscillators (Osc1-4) through 6 index-controlled DCAs (Ind1-6) into two waveshape tables (WSA/WSB). The notation `Osc2→Ind1→Osc1` means Osc2 frequency-modulates Osc1 with depth controlled by Ind1. Side-chain (`+`) means the signal is mixed into the output rather than used as a modulator. `→WSA` and `→WSB` indicate which waveshape table receives the result.
 
 | Config | Routing |
 |--------|---------|
-| **00** | Osc2→Ind1→Osc1→Ind3→WSA, Osc4→Ind2→WSA side; mirror via Ind4-6→WSB |
-| **01** | Cross-modulation: Osc2→Osc1→WSA, Osc4→Osc3→WSB, with side inputs from modulators |
-| **02** | Parallel paths with Osc1↔Osc4 feedback loop |
-| **03** | Side-chained: Osc3 modulates both Osc1 and Osc2; Osc4 drives both outputs |
-| **04** | Dual modulation with Osc2→Osc1→WSA; Ind1 unused, WSB driven by envelope directly |
-| **05** | Cross-coupled side chains: Osc4→Osc1→WSA, Osc2→Osc3→WSB with cross-feedback |
-| **06** | Dual output from single chain: Osc3→Osc2→Osc1→WSA and WSB simultaneously; Ind5 unused |
-| **07** | Multi-output Osc4: feeds both WSA and WSB paths; Osc3 unused |
-| **08** | Dual side-chain architecture: Osc2→Osc1→WSA, Osc3→Osc4→WSB with cross-modulation |
-| **09** | Circular modulation: Osc4→Osc1→WSA, Osc2→Osc3→WSB with Osc1→Osc4 and Osc3→Osc2 feedback |
-| **10** | Three oscillators sharing one modulator (Osc2): Osc2 modulates Osc1 and Osc3; Osc4 unused |
-| **11** | Triple-output: Osc3→Osc1 feeds both WSA and WSB; Osc1, Osc2, Osc4 as side-chain inputs |
+| **00** | Symmetric dual-path. WSA: Osc2→Ind1→Osc1, mixed with Osc4×Ind2, scaled by Ind3. WSB: Osc2→Ind4→Osc3, mixed with Osc4×Ind5, scaled by Ind6. Osc2 and Osc4 each modulate both paths. |
+| **01** | Split modulators. WSA: Osc2→Ind1→Osc1, with Osc2 side-chain×Ind2, scaled by Ind3. WSB: Osc4→Ind4→Osc3, with Osc4 side-chain×Ind5, scaled by Ind6. Each modulator dedicated to one path. |
+| **02** | Cascaded FM with feedback. WSA: Osc3→Ind2→Osc2→Ind1→Osc1, scaled by Ind3. WSB: Osc4→Ind4→Osc3, scaled by Ind6. Osc1→Ind5→Osc4 feedback loop creates complex spectra. |
+| **03** | Shared carrier. Osc3 FM-modulates both Osc1 (via Ind2) and Osc2 (via Ind5). Osc4 appears directly in both outputs. WSA: (Osc4 + Osc1×Ind1)×Ind3. WSB: (Osc4 + Osc2×Ind4)×Ind6. |
+| **04** | Minimal FM + direct envelope. WSA: Osc2→Ind2→Osc1, scaled by Ind3. WSB: Ind6 alone (pure envelope, no oscillator). Ind1 unused. Osc3, Osc4 computed but not routed to output. |
+| **05** | Cross-coupled paths. WSA: Osc4→Ind2→Osc1, mixed with Osc2 side-chain, scaled by Ind3×Ind1. WSB: Osc2→Ind5→Osc3, mixed with Osc4 side-chain, scaled by Ind6×Ind4. |
+| **06** | Three-oscillator cascade, dual output. Osc3→Ind1→Osc2→Ind2→Osc1, with Osc4×Ind4 added. Both WSA (×Ind3) and WSB (×Ind6) receive the same signal. Ind5 unused. |
+| **07** | Osc4-centric. WSA: Osc4→Ind4→Osc1, scaled by Ind3. WSB: Osc4 with self-modulation×Ind5, scaled by Ind6. Osc2 has Osc4 FM + self-feedback but is not routed to output. Osc3 unused. |
+| **08** | Dual-path with feedback. WSA: Osc2→Ind2→Osc1, mixed with Osc3×Ind1, scaled by Ind3. WSB: Osc4 mixed with Osc1×Ind5, scaled by Ind6. Osc3→Ind4→Osc2 feedback alters the FM spectrum. |
+| **09** | Circular feedback. WSA: Osc4→Ind1→Osc1, scaled by Ind3. WSB: Osc2→Ind4→Osc3, scaled by Ind6. Osc1→Ind5→Osc4 and Osc3→Ind2→Osc2 form two feedback loops creating chaotic, evolving timbres. |
+| **10** | Shared modulator, no feedback. Osc2 FM-modulates both Osc1 (via Ind2) and Osc3 (via Ind5). WSA: Osc1 + Osc3 side-chain×Ind1, scaled by Ind3. WSB: Osc3 + Osc1 side-chain×Ind4, scaled by Ind6. Osc4 unused. |
+| **11** | Multi-output with shared carrier. Osc3→Ind5→Osc1 as the main FM pair. WSA: Osc1 + Osc1 raw×Ind1 + Osc4×Ind4, scaled by Ind3. WSB: Osc1 + Osc2×Ind2, scaled by Ind6. Three oscillators contribute as side-chains. |
 
 #### Instrument Library
 

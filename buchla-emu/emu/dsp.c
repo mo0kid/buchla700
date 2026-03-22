@@ -542,8 +542,10 @@ static void exciter_process(dsp_exciter_t *ex, double *left, double *right)
 typedef void (*fm_route_fn)(dsp_osc_t osc[4], const double idx[6],
 		double *wsa, double *wsb);
 
-/* Config 00: Osc2→Ind1→Osc1→Ind3→WSA, Osc4→Ind2→Ind3 side,
- *            Osc2→Ind4→Osc3→Ind6→WSB, Osc4→Ind5→Ind6 side */
+/* Config 00: Symmetric dual-path.
+ * WSA: Osc2→Ind1→Osc1, mixed with Osc4×Ind2, scaled by Ind3.
+ * WSB: Osc2→Ind4→Osc3, mixed with Osc4×Ind5, scaled by Ind6.
+ * Osc2 and Osc4 each modulate both paths. */
 
 static void route00(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -558,7 +560,10 @@ static void route00(dsp_osc_t o[4], const double x[6],
 	*wsb = (o2 + s3 * x[4]) * x[5];
 }
 
-/* Config 01: cross-modulation with side inputs */
+/* Config 01: Split modulators.
+ * WSA: Osc2→Ind1→Osc1, with Osc2 side-chain×Ind2, scaled by Ind3.
+ * WSB: Osc4→Ind4→Osc3, with Osc4 side-chain×Ind5, scaled by Ind6.
+ * Each modulator dedicated to one path. */
 
 static void route01(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -573,7 +578,10 @@ static void route01(dsp_osc_t o[4], const double x[6],
 	*wsb = (o2 + s3 * x[4]) * x[5];
 }
 
-/* Config 02: parallel routing, Osc1↔Osc4 feedback */
+/* Config 02: Cascaded FM with feedback.
+ * WSA: Osc3→Ind2→Osc2→Ind1→Osc1, scaled by Ind3.
+ * WSB: Osc4→Ind4→Osc3, scaled by Ind6.
+ * Osc1→Ind5→Osc4 feedback loop creates complex spectra. */
 
 static void route02(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -593,7 +601,10 @@ static void route02(dsp_osc_t o[4], const double x[6],
 	*wsb = o2 * x[5];
 }
 
-/* Config 03: side-chained modulation */
+/* Config 03: Shared carrier.
+ * Osc3 FM-modulates both Osc1 (via Ind2) and Osc2 (via Ind5).
+ * Osc4 appears directly in both outputs.
+ * WSA: (Osc4 + Osc1×Ind1)×Ind3. WSB: (Osc4 + Osc2×Ind4)×Ind6. */
 
 static void route03(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -608,7 +619,10 @@ static void route03(dsp_osc_t o[4], const double x[6],
 	*wsb = (s3 + o1 * x[3]) * x[5];
 }
 
-/* Config 04: dual modulation, Ind1 unused */
+/* Config 04: Minimal FM + direct envelope.
+ * WSA: Osc2→Ind2→Osc1, scaled by Ind3.
+ * WSB: Ind6 alone (pure envelope, no oscillator). Ind1 unused.
+ * Osc3, Osc4 computed but not routed to output. */
 
 static void route04(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -626,7 +640,9 @@ static void route04(dsp_osc_t o[4], const double x[6],
 	*wsb = x[5]; /* direct envelope → WSB */
 }
 
-/* Config 05: cross-coupled side chains */
+/* Config 05: Cross-coupled paths.
+ * WSA: Osc4→Ind2→Osc1, mixed with Osc2 side-chain, scaled by Ind3×Ind1.
+ * WSB: Osc2→Ind5→Osc3, mixed with Osc4 side-chain, scaled by Ind6×Ind4. */
 
 static void route05(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -640,7 +656,9 @@ static void route05(dsp_osc_t o[4], const double x[6],
 	*wsb = (s3 + o2 * x[3]) * x[5];
 }
 
-/* Config 06: dual output, Ind5 unused */
+/* Config 06: Three-oscillator cascade, dual output.
+ * Osc3→Ind1→Osc2→Ind2→Osc1, with Osc4×Ind4 added.
+ * Both WSA (×Ind3) and WSB (×Ind6) receive the same signal. Ind5 unused. */
 
 static void route06(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -655,7 +673,10 @@ static void route06(dsp_osc_t o[4], const double x[6],
 	*wsb = o0 * x[5];
 }
 
-/* Config 07: unused Osc3, multi-output Osc4 */
+/* Config 07: Osc4-centric.
+ * WSA: Osc4→Ind4→Osc1, scaled by Ind3.
+ * WSB: Osc4 with self-modulation×Ind5, scaled by Ind6.
+ * Osc2 has Osc4 FM + self-feedback but not routed to output. Osc3 unused. */
 
 static void route07(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -671,7 +692,10 @@ static void route07(dsp_osc_t o[4], const double x[6],
 	*wsb = (s3 + s3 * x[4]) * x[5];
 }
 
-/* Config 08: dual side-chain architecture */
+/* Config 08: Dual-path with feedback.
+ * WSA: Osc2→Ind2→Osc1, mixed with Osc3×Ind1, scaled by Ind3.
+ * WSB: Osc4 mixed with Osc1×Ind5, scaled by Ind6.
+ * Osc3→Ind4→Osc2 feedback alters the FM spectrum. */
 
 static void route08(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -688,7 +712,11 @@ static void route08(dsp_osc_t o[4], const double x[6],
 	*wsb = (s3 + s0 * x[4]) * x[5];
 }
 
-/* Config 09: circular modulation */
+/* Config 09: Circular feedback.
+ * WSA: Osc4→Ind1→Osc1, scaled by Ind3.
+ * WSB: Osc2→Ind4→Osc3, scaled by Ind6.
+ * Osc1→Ind5→Osc4 and Osc3→Ind2→Osc2 form two feedback loops
+ * creating chaotic, evolving timbres. */
 
 static void route09(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -709,7 +737,10 @@ static void route09(dsp_osc_t o[4], const double x[6],
 	*wsb = o2 * x[5];
 }
 
-/* Config 10: unused Osc4, cross-coupled side chains */
+/* Config 10: Shared modulator, no feedback.
+ * Osc2 FM-modulates both Osc1 (via Ind2) and Osc3 (via Ind5).
+ * WSA: Osc1 + Osc3 side-chain×Ind1, scaled by Ind3.
+ * WSB: Osc3 + Osc1 side-chain×Ind4, scaled by Ind6. Osc4 unused. */
 
 static void route10(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
@@ -725,7 +756,11 @@ static void route10(dsp_osc_t o[4], const double x[6],
 	*wsb = (o2 + s0 * x[3]) * x[5];
 }
 
-/* Config 11: triple-output Osc1 with cross-coupled side chains */
+/* Config 11: Multi-output with shared carrier.
+ * Osc3→Ind5→Osc1 as the main FM pair.
+ * WSA: Osc1 + Osc1 raw×Ind1 + Osc4×Ind4, scaled by Ind3.
+ * WSB: Osc1 + Osc2×Ind2, scaled by Ind6.
+ * Three oscillators contribute as side-chains. */
 
 static void route11(dsp_osc_t o[4], const double x[6],
 		double *wsa, double *wsb)
