@@ -241,4 +241,6 @@ This project is based on the work of the [Buchla Emulation Project](https://bob.
 
 ## License
 
-GNU General Public License v3.0 — see [gpl.txt](buchla-emu/gpl.txt).
+The emulator (`buchla-emu`) and iPad controller (`buchla-ctl`) are licensed under the **GNU General Public License v3.0** — see [LICENSE](LICENSE).
+
+The firmware source (`buchla-68k`) contains original code by D.N. Lynx Crowe, released "for noncommercial personal and educational use" and "as-is with no guarantees of completeness or correctness." Modifications to the firmware by the Buchla Emulation Project are in the public domain. Please respect Lynx Crowe's original terms when using the firmware source.
