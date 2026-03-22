@@ -1,11 +1,11 @@
-# TauControl - Buchla 700 Style OSC Controller
+# BuchlaControl - Buchla 700 Style OSC Controller
 
-TauControl is an iPad application that provides a touch-based interface for controlling the Taunus synthesizer over OSC (Open Sound Control). It emulates the look and feel of the iconic Buchla 700 hardware interface.
+BuchlaControl is an iPad application that provides a touch-based interface for controlling the Buchla 700 emulator over OSC (Open Sound Control). It emulates the look and feel of the iconic Buchla 700 hardware interface.
 
 ## Features
 
 ### Touch Controls
-- **24 Touch Keys**: Velocity-sensitive keys with Y-axis expression control
+- **24 Touch Keys**: Keys with Y-axis expression control
   - Keys 0-14 map to MIDI notes 0-14
   - Keys 15-23 map to MIDI notes 115-123
   - Real-time Y-position feedback for expression control
@@ -17,7 +17,7 @@ TauControl is an iPad application that provides a touch-based interface for cont
 
 ### Interface Elements
 - **14 Multipurpose Buttons**: Toggle buttons for various control functions
-- **14 Data Faders**: Vertical faders with labels matching LCD display data
+- **14 Data Faders**: Bar-graph faders with labels matching LCD display data
 - **Tempo Controls**: Tempo multiplier and time scaling knobs
 
 ### Visual Design
@@ -27,7 +27,7 @@ TauControl is an iPad application that provides a touch-based interface for cont
 
 ## OSC Communication
 
-### Outgoing Messages (to Taunus)
+### Outgoing Messages (to Buchla 700 emulator)
 - `/taucontrol/key/on [midiNote] [velocity] [yPosition]` - Key press with expression
 - `/taucontrol/key/off [midiNote] 0.0 0.0` - Key release
 - `/taucontrol/button [buttonIndex] [state]` - Button state change
@@ -36,8 +36,9 @@ TauControl is an iPad application that provides a touch-based interface for cont
 - `/taucontrol/tempo [multiplier]` - Tempo multiplier change
 - `/taucontrol/timescale [scaling]` - Time scaling change
 
-### Incoming Messages (from Taunus)
-- `/taunus/param/column/[index] [value]` - Data column value update
+### Incoming Messages (from Buchla 700 emulator)
+- `/taucontrol/fader [faderIndex] [value]` - Fader position update
+- `/taunus/lcd/row [row] [text]` - LCD row text update
 - `/taunus/status [status]` - Connection status
 
 ## Building
@@ -52,19 +53,21 @@ TauControl is an iPad application that provides a touch-based interface for cont
 
 1. **Configure for Xcode**:
    ```bash
-   cd tauControl
-   cmake . -B build -G Xcode
+   cd buchla-ctl
+   cmake -B build_ios -G Xcode \
+     -DCMAKE_SYSTEM_NAME=iOS \
+     -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
    ```
 
 2. **Open in Xcode**:
    ```bash
-   open build/TauControl.xcodeproj
+   open build_ios/BuchlaControl.xcodeproj
    ```
 
 3. **Configure iPad Deployment**:
    - Set target device to iPad
    - Configure development team and signing
-   - Set deployment target to iOS 13.0+
+   - Set deployment target to iOS 15.0+
 
 4. **Build and Deploy**:
    - Build and run on iPad device or simulator
@@ -73,7 +76,7 @@ TauControl is an iPad application that provides a touch-based interface for cont
 
 ### Network Setup
 - Default connection: `127.0.0.1:9001` (send) / `9002` (receive)
-- Supports local network discovery of Taunus instances
+- Supports local network discovery of Buchla 700 emulator instances
 - Configurable IP address and ports
 
 ### Display Layout
@@ -92,23 +95,23 @@ The interface is divided into sections matching the Buchla 700 layout:
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Integration with Taunus
+## Integration with the Buchla 700 Emulator
 
-To use TauControl with the Taunus synthesizer:
+To use BuchlaControl with the Buchla 700 emulator:
 
-1. **Add OSC Support to Taunus**: Taunus needs OSC receiver functionality to handle incoming messages from TauControl
+1. **Ensure both are on the same network**: The iPad running BuchlaControl and the machine running the emulator must be reachable via UDP.
 
-2. **Message Routing**: TauControl messages should be routed to appropriate Taunus parameters:
+2. **Message Routing**: BuchlaControl messages are routed to the emulator's OSC handler, which maps them to the appropriate parameters:
    - Key events → Voice triggering and note assignment
    - XY controller → Modulation sources (HT/VT)
    - Faders → Parameter control (dynamics, FM indices, etc.)
    - Buttons → Function switching, preset selection
 
-3. **Feedback**: Taunus can send display updates and parameter changes back to TauControl for visual feedback
+3. **Feedback**: The emulator sends display updates (LCD text, bar graph values) back to BuchlaControl for visual feedback.
 
 ## License
 
-This project is part of the Taunus synthesizer suite and follows the same licensing terms.
+GNU General Public License v3.0 — see [LICENSE](../LICENSE).
 
 ## Credits
 
