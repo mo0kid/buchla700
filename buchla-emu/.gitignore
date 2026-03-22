@@ -1,0 +1,12 @@
+bios.abs
+bios.elf
+midas.abs
+midas.elf
+
+build/*
+buchla
+buchla.exe
+mkdisk
+mkdisk.exe
+
+buchla.disk

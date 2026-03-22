@@ -1,0 +1,1 @@
+../../../orig/lib/INCLUDE/M7MIDI.H

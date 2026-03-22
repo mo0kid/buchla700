@@ -1,0 +1,310 @@
+.globl _io_time
+.globl _io_lcd
+.globl _io_ser
+.globl _io_midi
+.globl _io_disk
+.globl _io_tone
+.globl _io_leds
+.globl _io_kbrd
+.globl _lcd_a0
+.globl _lcd_a1
+.globl _io_vreg
+.globl _io_vraw
+.globl _io_vram
+.globl _io_fpu
+.globl _v_regs
+.globl _v_odtab
+.globl _v_actab
+.globl _v_ct0
+.globl _v_gt1
+.globl _v_score
+.globl _v_cgtab
+.globl _v_curs0
+.globl _v_curs1
+.globl _v_curs2
+.globl _v_curs3
+.globl _v_curs4
+.globl _v_curs5
+.globl _v_curs6
+.globl _v_curs7
+.globl _v_tcur
+.globl _v_kbobj
+.globl _v_lnobj
+.globl _v_win0
+.globl _v_cur
+.globl _fc_sw
+.globl _fc_val
+.globl _ebflag
+.globl _ebuf
+.globl _curfet
+.globl _cfetp
+.globl _infetp
+.globl _scopec
+.comm _scopec,2
+.globl _scopef
+.comm _scopef,2
+.globl _scoper
+.comm _scoper,2
+.globl _scopev
+.comm _scopev,2
+.globl _scopeob
+.comm _scopeob,4
+.globl _scopebf
+.comm _scopebf,66
+.globl _astat
+.globl _ndisp
+.globl _scorpal
+.globl _crate1
+.globl _dt_flds
+.data
+_dt_flds:
+*line 48
+.dc.l _nokey
+*line 49
+.dc.l _nokey
+*line 50
+.dc.l _nokey
+*line 51
+.dc.l _nokey
+*line 52
+.dc.l _nokey
+*line 53
+.dc.l _nokey
+*line 54
+.dc.l _nokey
+*line 55
+.dc.l _nokey
+*line 56
+.dc.l _nokey
+*line 57
+.dc.l _nokey
+*line 58
+.dc.l _scptogl
+*line 59
+.dc.l _stdmkey
+*line 60
+.dc.l _nokey
+*line 61
+.dc.l _nokey
+.dc.l $0
+.dc.l $0
+*line 64
+.dc.l _crate1
+*line 65
+.dc.l _crate1
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.globl _scope
+.text
+_scope:
+~~scope:
+~val=R7
+link R14,#0
+movem.l R5-R7/R13-R13,-(sp)
+~i=R6
+~bp=R13
+*line 84
+move.l #_scopebf,R13
+*line 86
+move 8(R14),R7
+*line 86
+*line 87
+cmp #11,_ndisp
+bne L1
+tst _scopef
+beq L1
+*line 88
+*line 89
+move #20,(sp)
+move.l #_scopebf,-(sp)
+move _scopec,-(sp)
+move _scoper,-(sp)
+move.l _scopeob,-(sp)
+jsr _vputs
+adda.l #12,sp
+add #1,_scoper
+*line 91
+move.b #32,(R13)+
+*line 93
+*line 93
+cmp #24,_scoper
+ble L2
+*line 94
+*line 95
+clr _scoper
+*line 96
+add #12,_scopec
+*line 97
+*line 98
+*line 99
+cmp #60,_scopec
+blt L3
+*line 99
+clr _scopec
+L3:
+*line 100
+*line 101
+L2:
+*line 102
+move R7,_scopev
+*line 104
+clr R6
+bra L6
+L7:
+*line 105
+*line 106
+clr R0
+move R7,R0
+move #128,R1
+move R6,R2
+asr R2,R1
+and R1,R0
+beq L8
+*line 106
+move.b #49,(R13)+
+*line 107
+bra L9
+L8:
+*line 108
+move.b #48,(R13)+
+L9:L5:
+*line 104
+add #1,R6
+L6:
+*line 104
+cmp #4,R6
+blt L7
+L4:
+*line 110
+move.b #32,(R13)+
+*line 112
+move #4,R6
+bra L12
+L13:
+*line 113
+*line 114
+clr R0
+move R7,R0
+move #128,R1
+move R6,R2
+asr R2,R1
+and R1,R0
+beq L14
+*line 114
+move.b #49,(R13)+
+*line 115
+bra L15
+L14:
+*line 116
+move.b #48,(R13)+
+L15:L11:
+*line 112
+add #1,R6
+L12:
+*line 112
+cmp #8,R6
+blt L13
+L10:
+*line 118
+move.b #32,(R13)+
+*line 119
+clr.b (R13)
+*line 121
+move #84,(sp)
+move.l #_scopebf,-(sp)
+move _scopec,-(sp)
+move _scoper,-(sp)
+move.l _scopeob,-(sp)
+jsr _vputs
+adda.l #12,sp
+L1:tst.l (sp)+
+movem.l (sp)+,R6-R7/R13-R13
+unlk R14
+rts
+.globl _scptogl
+.text
+_scptogl:
+~~scptogl:
+link R14,#-4
+*line 135
+*line 136
+tst _astat
+beq L16
+*line 137
+*line 138
+tst _scopef
+beq L10000
+clr R0
+bra L10001
+L10000:move #1,R0
+L10001:move R0,_scopef
+L16:unlk R14
+rts
+.globl _scopeon
+.text
+_scopeon:
+~~scopeon:
+link R14,#-4
+*line 152
+move.l #_v_score,_scopeob
+*line 154
+move.l #_dt_flds,(sp)
+jsr _curset
+*line 156
+clr _scopec
+*line 157
+move #1,_scopef
+*line 158
+clr _scoper
+*line 159
+clr _scopev
+*line 161
+move.l #L18,(sp)
+move.l #_scopebf,-(sp)
+jsr _strcpy
+addq.l #4,sp
+*line 163
+jsr _dswap
+*line 165
+clr (sp)
+jsr _vbank
+*line 167
+move #32767,(sp)
+clr -(sp)
+move.l _scopeob,-(sp)
+jsr _memsetw
+addq.l #6,sp
+*line 168
+move #12033,(sp)
+clr -(sp)
+move.l _scopeob,R0
+add.l #$fffe,R0
+move.l R0,-(sp)
+jsr _memsetw
+addq.l #6,sp
+*line 170
+move #-1,(sp)
+move #72,-(sp)
+clr -(sp)
+clr -(sp)
+move #350,-(sp)
+move #512,-(sp)
+move.l _scopeob,-(sp)
+clr -(sp)
+move #1,-(sp)
+clr -(sp)
+jsr _SetObj
+adda.l #20,sp
+*line 171
+move.l #_scorpal,(sp)
+jsr _vsndpal
+*line 173
+move #15,(sp)
+clr -(sp)
+jsr _SetPri
+addq.l #2,sp
+L17:unlk R14
+rts
+.data
+L18:.dc.b $20,$3F,$3F,$3F,$3F,$20,$3F,$3F,$3F,$3F,$20,$0

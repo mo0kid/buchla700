@@ -1,0 +1,60 @@
+.globl _io_time
+.globl _io_lcd
+.globl _io_ser
+.globl _io_midi
+.globl _io_disk
+.globl _io_tone
+.globl _io_leds
+.globl _io_kbrd
+.globl _lcd_a0
+.globl _lcd_a1
+.globl _io_vreg
+.globl _io_vraw
+.globl _io_vram
+.globl _io_fpu
+.globl _v_regs
+.globl _v_odtab
+.globl _v_actab
+.globl _v_ct0
+.globl _v_gt1
+.globl _v_score
+.globl _v_cgtab
+.globl _v_curs0
+.globl _v_curs1
+.globl _v_curs2
+.globl _v_curs3
+.globl _v_curs4
+.globl _v_curs5
+.globl _v_curs6
+.globl _v_curs7
+.globl _v_tcur
+.globl _v_kbobj
+.globl _v_lnobj
+.globl _v_win0
+.globl _v_cur
+.globl _fc_sw
+.globl _fc_val
+.globl _v_obtab
+.globl _v_curob
+.globl _v_nobj
+.globl _v_obpri
+.globl _VSinit
+.text
+_VSinit:
+~~VSinit:
+link R14,#-4
+*line 23
+clr _v_nobj
+*line 24
+clr _v_obpri
+*line 25
+move #9,(sp)
+clr -(sp)
+move.l #_v_obtab,-(sp)
+jsr _memsetw
+addq.l #6,sp
+*line 26
+move.l #_v_obtab,_v_curob
+L1:unlk R14
+rts
+.data

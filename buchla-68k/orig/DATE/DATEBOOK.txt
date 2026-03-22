@@ -1,0 +1,133 @@
+
+
+
+     DATEBOOK(1)           UNIX 5.0 (Lynxcairne)           DATEBOOK(1)     DATEBOOK(1)           UNIX 5.0 (Lynxcairne)           DATEBOOK(1)
+
+
+
+     NAME     NAME
+          datebook - reminder service
+
+     SYNOPSIS     SYNOPSIS
+          datebook [ file ]          datebook
+
+     DESCRIPTION     DESCRIPTION
+          ________ consults the file `datebook.dat' if no argument is          Datebook
+          present, or file if it is present, and prints out lines that                      file
+          contain today's, tomorrow's, or a proper future date at the
+          beginning of the line.  Most reasonable month-day dates such
+          as `Dec. 7,' `december 7,' `12/7,' etc., are recognized, but
+          not `7 December' or `7/12'.  On weekends `tomorrow' extends
+          through Monday.
+
+          ________ also supports months and days of the week by          Datebook
+          themselves.  This allows you to specify things on a weekly
+          or monthly basis.  The format for weekday names is the same
+          as that for month names; Mon., monday, tues, tue, wed, etc.
+          The month may be specified either by name, or by number.
+          The weekday will only be recognized by name.
+
+     EXTENDED NOTIFICATION     EXTENDED NOTIFICATION
+          If you wish to have ________ notification of a previous or                              extended
+          upcoming event, ________ supports a notation that extends a                          datebook
+          date by a week.
+
+          If "*w" is appended directly to the week day, I.E. 12/7*w,
+          then you will be sent a reminder every day beginning
+          approximately (depending on the weekend) 7 days prior to the
+          date.
+
+          If "*W" (note the significance of case "w" or "W") is
+          appended to the week day as in the above example, than you
+          will be notified beginning one day before and extending up
+          to 10 days after.
+
+          If you wish to have both of these features, I.E. a 2 week
+          window around the given date, you can append "*Ww" or "*wW"
+          to the week day.
+
+     EXTENDED MESSAGES     EXTENDED MESSAGES
+          ________ will recognize lines with leading blanks or tabs as          Datebook
+          extensions to a line with a matched (the date given is
+          "today") date.  This allows comments longer than one line to
+          be present for any given date.  Below is an example date
+          specification.
+
+          Wednesday
+               Backups...
+               Check all printers for paper, ribbons, etc.
+
+
+
+
+     Page 1                                          (printed 10/6/86)
+
+
+
+
+
+
+     DATEBOOK(1)           UNIX 5.0 (Lynxcairne)           DATEBOOK(1)     DATEBOOK(1)           UNIX 5.0 (Lynxcairne)           DATEBOOK(1)
+
+
+
+     SAMPLE FILE     SAMPLE FILE
+          July            Get the budget ready for the new fiscal year
+          Monday          Check all printers for paper...
+                          Check MMDF, MDQS, and UUCP
+          Wednesday       Backups are tonight...
+          Friday          Lets go party....
+          6/17            John's b'day
+                          Mark's b'day
+
+     FILES     FILES
+          datebook.dat    The users' calendar ________'_ extended idea                                              Datebook s
+          of `tomorrow' doesn't account for holidays.  Lines
+          containing erroneous data are silently ignored.
+
+     CREDITS TO     CREDITS TO
+          Original code by Gregg Wonderly
+          Oklahoma State University
+
+
+          CP/M version by D.N. Lynx Crowe
+          Lynxcairne
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     Page 2                                          (printed 10/6/86)
+
+
+
+

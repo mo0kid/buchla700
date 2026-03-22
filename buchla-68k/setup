@@ -1,0 +1,1 @@
+export PATH="/opt/hatari/bin:/opt/cross-m68k/bin:${PATH}"

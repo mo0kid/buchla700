@@ -1,0 +1,207 @@
+.globl _v_obtab
+.globl _v_curob
+.globl _v_nobj
+.globl _v_obpri
+.globl _io_time
+.globl _io_lcd
+.globl _io_ser
+.globl _io_midi
+.globl _io_disk
+.globl _io_tone
+.globl _io_leds
+.globl _io_kbrd
+.globl _lcd_a0
+.globl _lcd_a1
+.globl _io_vreg
+.globl _io_vraw
+.globl _io_vram
+.globl _io_fpu
+.globl _v_regs
+.globl _v_odtab
+.globl _v_actab
+.globl _v_ct0
+.globl _v_gt1
+.globl _v_score
+.globl _v_cgtab
+.globl _v_curs0
+.globl _v_curs1
+.globl _v_curs2
+.globl _v_curs3
+.globl _v_curs4
+.globl _v_curs5
+.globl _v_curs6
+.globl _v_curs7
+.globl _v_tcur
+.globl _v_kbobj
+.globl _v_lnobj
+.globl _v_win0
+.globl _v_cur
+.globl _fc_sw
+.globl _fc_val
+.globl _ebflag
+.globl _ebuf
+.globl _curfet
+.globl _cfetp
+.globl _infetp
+.globl _filecat
+.globl _vtcrow
+.globl _vtccol
+.data
+L1:.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $FFFF
+.dc.w $FFFF
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.dc.w $0
+.text
+.globl _ttcini
+.text
+_ttcini:
+~~ttcini:
+~color=8
+link R14,#-4
+*line 63
+*line 64
+clr R0
+move 10+_v_regs,R0
+and #384,R0
+cmp #256,R0
+beq L3
+*line 64
+move #1,(sp)
+jsr _vbank
+*line 65
+L3:
+*line 66
+move #64,(sp)
+move 8(R14),-(sp)
+jsr _exp_c
+addq.l #2,sp
+move R0,-(sp)
+move.l #L1,-(sp)
+move.l #_v_tcur,-(sp)
+jsr _andcopy
+adda.l #10,sp
+L2:unlk R14
+rts
+.globl _ttcpos
+.text
+_ttcpos:
+~~ttcpos:
+~row=R7
+~col=R6
+link R14,#0
+movem.l R3-R7/R13-R13,-(sp)
+~yrow=R5
+~xcol=R4
+~op=R13
+*line 81
+move 8(R14),R7
+*line 81
+move 10(R14),R6
+*line 81
+*line 82
+clr R0
+move 10+_v_regs,R0
+and #384,R0
+beq L5
+*line 82
+clr (sp)
+jsr _vbank
+*line 83
+L5:
+*line 84
+move R7,R5
+muls #14,R5
+*line 85
+move R6,R4
+asl #3,R4
+*line 87
+move.l #36+_v_obtab,R13
+*line 89
+or #16,112+_v_odtab
+*line 90
+move #14,(sp)
+jsr _objclr
+*line 92
+move R4,4(R13)
+*line 93
+move R5,6(R13)
+*line 94
+move R4,R0
+asr #1,R0
+and #1023,R0
+or #1024,R0
+move R0,16(R13)
+*line 96
+move #14,(sp)
+move #2,-(sp)
+jsr _SetPri
+addq.l #2,sp
+*line 98
+move R7,_vtcrow
+*line 99
+move R6,_vtccol
+L4:tst.l (sp)+
+movem.l (sp)+,R4-R7/R13-R13
+unlk R14
+rts
+.data

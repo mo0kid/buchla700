@@ -1,0 +1,15 @@
+*.pdf
+*.o
+run.sh
+.DS_Store
+.claude/
+
+# Emulator build artifacts
+buchla-emu/build/
+buchla-emu/buchla
+buchla-emu/mkdisk
+buchla-emu/buchla.disk
+
+# iPad controller build artifacts
+buchla-ctl/build/
+buchla-ctl/build_ios/

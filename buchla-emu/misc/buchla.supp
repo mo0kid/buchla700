@@ -1,0 +1,105 @@
+{
+	_dl_*
+	Memcheck:Leak
+	...
+	fun:_dl_*
+}
+
+{
+	_XOpenLC
+	Memcheck:Leak
+	...
+	fun:_XOpenLC
+}
+
+{
+	X11_ShowCursor
+	Memcheck:Leak
+	...
+	fun:X11_ShowCursor
+}
+
+{
+	SDL_Init_REAL
+	Memcheck:Leak
+	...
+	fun:SDL_Init_REAL
+}
+
+{
+	libasound.so.*
+	Memcheck:Leak
+	...
+	obj:/usr/lib/x86_64-linux-gnu/libasound.so.*
+}
+
+{
+	libpulse.so.*
+	Memcheck:Leak
+	...
+	obj:/usr/lib/x86_64-linux-gnu/libpulse.so.*
+}
+
+{
+	X11_CreateWindow
+	Memcheck:Param
+	writev(vector[...])
+	...
+	fun:X11_CreateWindow
+}
+
+{
+	SDL_Quit_REAL
+	Memcheck:Overlap
+	...
+	fun:SDL_Quit_REAL
+}
+
+{
+	X11_GL_LoadLibrary
+	Memcheck:Addr4
+	...
+	fun:X11_GL_LoadLibrary
+}
+
+{
+	GL_*
+	Memcheck:Addr1
+	...
+	fun:GL_*
+}
+
+{
+	GL_*
+	Memcheck:Addr2
+	...
+	fun:GL_*
+}
+
+{
+	GL_*
+	Memcheck:Addr4
+	...
+	fun:GL_*
+}
+
+{
+	GL_*
+	Memcheck:Addr8
+	...
+	fun:GL_*
+}
+
+{
+	i965_dri.so
+	Memcheck:Addr2
+	...
+	obj:/usr/lib/x86_64-linux-gnu/dri/i965_dri.so
+}
+
+{
+	i965_dri.so
+	Memcheck:Addr4
+	...
+	obj:/usr/lib/x86_64-linux-gnu/dri/i965_dri.so
+}

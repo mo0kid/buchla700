@@ -1,0 +1,924 @@
+.globl _io_time
+.globl _io_lcd
+.globl _io_ser
+.globl _io_midi
+.globl _io_disk
+.globl _io_tone
+.globl _io_leds
+.globl _io_kbrd
+.globl _lcd_a0
+.globl _lcd_a1
+.globl _io_vreg
+.globl _io_vraw
+.globl _io_vram
+.globl _io_fpu
+.globl _v_regs
+.globl _v_odtab
+.globl _v_actab
+.globl _v_ct0
+.globl _v_gt1
+.globl _v_score
+.globl _v_cgtab
+.globl _v_curs0
+.globl _v_curs1
+.globl _v_curs2
+.globl _v_curs3
+.globl _v_curs4
+.globl _v_curs5
+.globl _v_curs6
+.globl _v_curs7
+.globl _v_tcur
+.globl _v_kbobj
+.globl _v_lnobj
+.globl _v_win0
+.globl _v_cur
+.globl _fc_sw
+.globl _fc_val
+.globl _ac_code
+.globl _scname
+.globl _se_chg
+.globl _curscor
+.globl _cursect
+.globl _se1_cnt
+.globl _se2_cnt
+.globl _se3_cnt
+.globl _spool
+.globl _pspool
+.globl _spcount
+.globl _frags
+.globl _t_bak
+.globl _t_cur
+.globl _t_ctr
+.globl _t_fwd
+.globl _size1
+.globl _size2
+.globl _size3
+.globl _scores
+.globl _scp
+.globl _seclist
+.globl _hplist
+.globl _p_bak
+.globl _p_cur
+.globl _p_ctr
+.globl _p_fwd
+.globl _clksrc
+.globl _curasg
+.globl _legato
+.globl _lstbgnc
+.globl _lstendc
+.globl _lstflag
+.globl _ndisp
+.globl _newflag
+.globl _nkdown
+.globl _recsw
+.globl _sd
+.globl _se
+.globl _stepenb
+.globl _stepint
+.globl _stepwgt
+.globl _velflag
+.globl _grpmode
+.globl _grpstat
+.globl _ins2grp
+.globl _vce2grp
+.globl _lastvce
+.globl _lastvel
+.globl _tuntab
+.globl _vce2trg
+.globl _stepfrm
+.globl _obj8
+.globl _gdstbc
+.globl _lstbgns
+.globl _lstends
+.globl _nefree
+.globl _nelist
+.globl _nevents
+.globl _clrnl
+.text
+_clrnl:
+~~clrnl:
+link R14,#0
+movem.l R6-R7,-(sp)
+~i=R7
+*line 90
+clr R7
+bra L4
+L5:
+*line 91
+*line 92
+move R7,R0
+add #1,R0
+asl #3,R0
+ext.l R0
+add.l #_nevents,R0
+move R7,R1
+asl #3,R1
+ext.l R1
+add.l #_nevents,R1
+move.l R1,R9
+move.l R0,(R9)
+*line 93
+move R7,R0
+asl #3,R0
+ext.l R0
+add.l #_nevents,R0
+move.l R0,R8
+clr 4(R8)
+*line 94
+move R7,R0
+asl #3,R0
+ext.l R0
+add.l #_nevents,R0
+move.l R0,R8
+clr 4(R8)
+L3:
+*line 90
+add #1,R7
+L4:
+*line 90
+cmp #31,R7
+blt L5
+L2:
+*line 97
+clr.l 248+_nevents
+*line 99
+clr.l _nelist
+*line 100
+move.l #_nevents,_nefree
+*line 101
+clr _nkdown
+L1:tst.l (sp)+
+movem.l (sp)+,R7-R7
+unlk R14
+rts
+.globl _ne_end
+.text
+_ne_end:
+~~ne_end:
+~grp=R7
+~trg=8
+link R14,#0
+movem.l R4-R7/R12-R13,-(sp)
+~nn=R6
+~fcend=R5
+~nx=R13
+~ep=R12
+*line 124
+move 10(R14),R7
+*line 128
+*line 128
+tst _recsw
+beq L10000
+move R7,R8
+add.l R8,R8
+add.l #_grpmode,R8
+cmp #2,(R8)
+beq L7
+L10000:*line 129
+*line 130
+bra L6
+*line 131
+*line 132
+*line 133
+L7:
+*line 138
+*line 139
+cmp #1,_sd
+bne L8
+*line 139
+jsr _chgsdf
+*line 140
+L8:
+*line 141
+*line 142
+cmp #1,_se
+bne L9
+*line 142
+jsr _chgsef
+*line 143
+*line 144
+L9:
+*line 145
+move 8(R14),R6
+and #127,R6
+*line 147
+*line 147
+cmp #6,_clksrc
+beq L10
+*line 148
+*line 149
+*line 150
+*line 151
+*line 151
+move #5,(sp)
+jsr _e_alc
+move.l R0,R12
+move.l R12,R0
+beq L11
+*line 152
+*line 153
+*line 154
+move.l _t_cur,(R12)
+*line 155
+move.b #134,5(R12)
+*line 156
+move.b R6,6(R12)
+*line 157
+move.b R7,7(R12)
+*line 158
+move #16128,16(R12)
+*line 159
+*line 160
+*line 161
+move.l _t_cur,(sp)
+clr -(sp)
+move.l _p_cur,-(sp)
+jsr _ep_adj
+addq.l #6,sp
+move.l R0,(sp)
+move.l R12,-(sp)
+jsr _e_ins
+addq.l #4,sp
+move.l R0,R8
+move.l 12(R8),_p_cur
+*line 162
+*line 163
+*line 164
+move.l _t_cur,R0
+cmp.l _t_ctr,R0
+bne L12
+*line 164
+move #1,_newflag
+*line 165
+L12:
+*line 166
+move #1,(sp)
+move.l #_gdstbc,-(sp)
+clr -(sp)
+move.l R12,-(sp)
+jsr _se_disp
+adda.l #10,sp
+*line 167
+bra L13
+L11:
+*line 168
+*line 169
+*line 170
+L13:
+*line 171
+*line 172
+*line 173
+bra L6
+*line 174
+*line 175
+*line 176
+bra L14
+L10:
+*line 177
+*line 177
+cmp #1,_nkdown
+blt L15
+*line 178
+*line 179
+*line 180
+*line 181
+*line 181
+sub #1,_nkdown
+bne L16
+*line 182
+*line 183
+*line 183
+tst _stepenb
+beq L17
+*line 184
+*line 185
+*line 186
+*line 187
+*line 188
+move _stepint,R8
+add.l R8,R8
+move.l #_stepfrm,R9
+move 102(R8,R9.l),R0
+ext.l R0
+move.l R0,R5
+add.l _fc_val,R5
+*line 189
+move _stepwgt,R0
+muls #34,R0
+move _stepint,R1
+asl #1,R1
+ext.l R1
+add.l R1,R0
+move.l R0,R8
+move.l #_stepfrm,R9
+move 0(R8,R9.l),R0
+ext.l R0
+add.l R0,_fc_val
+*line 190
+move.l _fc_val,(sp)
+jsr _sc_trek
+*line 191
+move.l _fc_val,(sp)
+jsr _sc_trak
+*line 192
+*line 193
+*line 194
+L17:
+*line 195
+bra L20
+L19:
+*line 196
+*line 197
+move.l _nelist,R8
+move 6(R8),R6
+*line 198
+move.l _nelist,R8
+move 4(R8),R7
+*line 199
+*line 200
+*line 200
+move #5,(sp)
+jsr _e_alc
+move.l R0,R12
+move.l R12,R0
+beq L21
+*line 201
+*line 202
+*line 203
+move.l _t_cur,(R12)
+*line 204
+move.b #134,5(R12)
+*line 205
+move.b R6,6(R12)
+*line 206
+move.b R7,7(R12)
+*line 207
+move #16128,16(R12)
+*line 208
+*line 209
+*line 210
+move.l _t_cur,(sp)
+clr -(sp)
+move.l _p_cur,-(sp)
+jsr _ep_adj
+addq.l #6,sp
+move.l R0,(sp)
+move.l R12,-(sp)
+jsr _e_ins
+addq.l #4,sp
+move.l R0,R8
+move.l 12(R8),_p_cur
+*line 211
+*line 212
+move #1,(sp)
+move.l #_gdstbc,-(sp)
+clr -(sp)
+move.l R12,-(sp)
+jsr _se_disp
+adda.l #10,sp
+*line 213
+*line 214
+*line 215
+cmp #48,_lstendc
+bge L22
+*line 215
+move _lstendc,R8
+add.l R8,R8
+add.l R8,R8
+add.l #_lstends,R8
+move.l R12,(R8)
+add #1,_lstendc
+*line 216
+L22:bra L23
+L21:
+*line 217
+*line 218
+*line 219
+L23:
+*line 220
+*line 221
+*line 222
+*line 223
+*line 224
+move.l _nelist,R8
+move.l (R8),R13
+*line 225
+move.l _nelist,R8
+move.l _nefree,(R8)
+*line 226
+move.l _nelist,_nefree
+*line 227
+move.l R13,_nelist
+L20:
+*line 228
+tst.l _nelist
+bne L19
+L18:
+*line 229
+*line 230
+move #1,_lstflag
+*line 231
+*line 232
+*line 233
+*line 234
+*line 234
+tst _stepenb
+beq L24
+*line 235
+*line 236
+*line 236
+cmp.l _fc_val,R5
+ble L25
+*line 237
+*line 238
+*line 239
+move.l R5,_fc_val
+*line 240
+move.l _fc_val,(sp)
+jsr _sc_trek
+*line 241
+move.l _fc_val,(sp)
+jsr _sc_trak
+*line 242
+L25:
+*line 243
+L24:
+*line 244
+*line 245
+L16:bra L26
+L15:
+*line 246
+*line 247
+*line 248
+clr _nkdown
+*line 249
+*line 250
+clr _lstendc
+*line 251
+clr _lstbgnc
+*line 252
+clr _lstflag
+L26:L14:L6:tst.l (sp)+
+movem.l (sp)+,R5-R7/R12-R13
+unlk R14
+rts
+.globl _ne_bgn
+.text
+_ne_bgn:
+~~ne_bgn:
+~grp=R7
+~key=R6
+~vel=R5
+link R14,#0
+movem.l R4-R7/R12-R13,-(sp)
+~ep=R13
+~np=R12
+*line 273
+move 8(R14),R7
+*line 273
+move 10(R14),R6
+*line 273
+move 12(R14),R5
+*line 277
+*line 277
+tst _recsw
+beq L28
+move R7,R8
+add.l R8,R8
+add.l #_grpmode,R8
+cmp #2,(R8)
+bne L28
+*line 278
+*line 279
+*line 280
+*line 281
+*line 282
+*line 283
+*line 284
+cmp #1,_sd
+bne L29
+*line 284
+jsr _chgsdf
+*line 285
+L29:
+*line 286
+*line 287
+cmp #1,_se
+bne L30
+*line 287
+jsr _chgsef
+*line 288
+L30:
+*line 289
+*line 289
+tst _lstflag
+beq L31
+*line 290
+*line 291
+clr _lstbgnc
+*line 292
+clr _lstendc
+*line 293
+clr _lstflag
+*line 294
+*line 295
+L31:
+*line 296
+*line 296
+cmp #6,_clksrc
+bne L32
+*line 297
+*line 298
+*line 299
+add #1,_nkdown
+*line 300
+*line 301
+*line 301
+tst.l _nefree
+beq L33
+*line 302
+*line 303
+move.l _nefree,R12
+*line 304
+move.l (R12),_nefree
+*line 305
+move R6,6(R12)
+*line 306
+move R7,4(R12)
+*line 307
+move.l _nelist,(R12)
+*line 308
+move.l R12,_nelist
+*line 309
+*line 310
+bra L34
+L33:
+*line 311
+*line 312
+*line 313
+L34:
+*line 314
+*line 315
+*line 316
+*line 317
+L32:
+*line 318
+*line 318
+move #5,(sp)
+jsr _e_alc
+move.l R0,R13
+move.l R13,R0
+beq L35
+*line 319
+*line 320
+*line 321
+move.l _t_cur,(R13)
+*line 322
+move.b #133,5(R13)
+*line 323
+move.b R6,6(R13)
+*line 324
+move.b R7,7(R13)
+*line 325
+cmp #6,_clksrc
+bne L10001
+move #16128,R0
+bra L10003
+L10001:move R5,R0
+L10003:move R0,16(R13)
+*line 326
+*line 327
+*line 328
+move.l _t_cur,(sp)
+clr -(sp)
+move.l _p_cur,-(sp)
+jsr _ep_adj
+addq.l #6,sp
+move.l R0,(sp)
+move.l R13,-(sp)
+jsr _e_ins
+addq.l #4,sp
+move.l R0,R8
+move.l 12(R8),_p_cur
+*line 329
+*line 330
+move #1,(sp)
+move.l #_gdstbc,-(sp)
+clr -(sp)
+move.l R13,-(sp)
+jsr _se_disp
+adda.l #10,sp
+*line 331
+*line 332
+*line 333
+move.l _t_cur,R0
+cmp.l _t_ctr,R0
+bne L36
+*line 333
+move #1,_newflag
+*line 334
+L36:
+*line 335
+*line 336
+cmp #6,_clksrc
+bne L37
+cmp #48,_lstbgnc
+bge L37
+*line 336
+move _lstbgnc,R8
+add.l R8,R8
+add.l R8,R8
+add.l #_lstbgns,R8
+move.l R13,(R8)
+add #1,_lstbgnc
+*line 337
+L37:bra L38
+L35:
+*line 338
+*line 339
+*line 340
+L38:
+*line 341
+*line 342
+*line 343
+L28:L27:tst.l (sp)+
+movem.l (sp)+,R5-R7/R12-R13
+unlk R14
+rts
+.globl _showvel
+.text
+_showvel:
+~~showvel:
+~g=8
+~v=10
+link R14,#-10
+~buf=-6
+*line 361
+*line 362
+clr R0
+move 10+_v_regs,R0
+and #384,R0
+beq L40
+*line 362
+clr (sp)
+jsr _vbank
+*line 363
+L40:
+*line 364
+move 8(R14),R8
+add.l R8,R8
+add.l #_lastvel,R8
+move 10(R14),(R8)
+*line 366
+move 10(R14),R0
+ext.l R0
+divs #252,R0
+move R0,(sp)
+move.l #L41,-(sp)
+move.l R14,-(sp)
+sub.l #6,(sp)
+jsr _sprintf
+addq.l #8,sp
+*line 368
+move #18,(sp)
+move.l R14,-(sp)
+sub.l #6,(sp)
+move 8(R14),R0
+muls #5,R0
+move R0,-(sp)
+add #6,(sp)
+move #5,-(sp)
+move.l _obj8,-(sp)
+jsr _vputs
+adda.l #12,sp
+L39:unlk R14
+rts
+.globl _asgvce
+.text
+_asgvce:
+~~asgvce:
+~grp=8
+~port=10
+~chan=12
+~key=14
+~vel=16
+link R14,#0
+movem.l R2-R7/R12-R13,-(sp)
+~i=R7
+~tv=R6
+~vp=R5
+~trg=R4
+~aflag=R3
+~np=R13
+~ep=R12
+*line 393
+move 10(R14),R4
+move #11,R0
+asl R0,R4
+move 12(R14),R0
+asl #7,R0
+add R0,R4
+add 14(R14),R4
+*line 394
+move 8(R14),R8
+add.l R8,R8
+add.l #_lastvce,R8
+move (R8),R5
+add #1,R5
+*line 395
+cmp #11,R5
+ble L10004
+clr R0
+bra L10006
+L10004:move R5,R0
+L10006:move R0,R5
+*line 402
+move #12,R7
+bra L45
+L46:
+*line 403
+*line 404
+*line 404
+move R5,R8
+add.l R8,R8
+add.l #_vce2trg,R8
+cmp #-1,(R8)
+bne L47
+move R5,R8
+add.l R8,R8
+move.l #_vce2grp,R9
+move 0(R8,R9.l),R0
+move 8(R14),R1
+add #1,R1
+cmp R1,R0
+bne L47
+*line 405
+*line 406
+*line 407
+cmp #2,_ndisp
+bne L48
+tst _velflag
+beq L48
+tst _recsw
+bne L48
+*line 407
+move 16(R14),(sp)
+move 8(R14),-(sp)
+jsr _showvel
+addq.l #2,sp
+*line 408
+L48:
+*line 409
+move 8(R14),R8
+add.l R8,R8
+add.l #_lastvce,R8
+move R5,(R8)
+*line 410
+clr (sp)
+move R5,-(sp)
+move 14(R14),R8
+add.l R8,R8
+move.l #_tuntab,R9
+move 0(R8,R9.l),-(sp)
+move R4,-(sp)
+jsr _execkey
+addq.l #6,sp
+*line 411
+bra L42
+*line 412
+*line 413
+*line 414
+L47:
+*line 415
+*line 416
+add #1,R5
+move R5,R0
+cmp #11,R0
+ble L49
+*line 416
+clr R5
+L49:L44:L45:
+*line 402
+move R7,R0
+sub #1,R7
+tst R0
+bne L46
+L43:
+*line 421
+move #12,R7
+bra L52
+L53:
+*line 422
+*line 423
+move R5,R8
+add.l R8,R8
+add.l #_vce2trg,R8
+move (R8),R6
+*line 424
+*line 425
+*line 426
+cmp #-1,R6
+bne L54
+*line 426
+move #1,R3
+bra L55
+L54:
+*line 427
+*line 428
+move R6,R0
+and #-16384,R0
+bne L56
+*line 428
+move #1,R3
+*line 429
+bra L57
+L56:
+*line 430
+clr R3
+L57:L55:
+*line 431
+*line 432
+*line 432
+tst R3
+beq L58
+move R5,R8
+add.l R8,R8
+move.l #_vce2grp,R9
+move 0(R8,R9.l),R0
+move 8(R14),R1
+add #1,R1
+cmp R1,R0
+bne L58
+*line 433
+*line 434
+*line 435
+*line 436
+move 8(R14),R8
+add.l R8,R8
+add.l #_ins2grp,R8
+btst #0,(R8)
+beq L59
+cmp R4,R6
+beq L59
+cmp #-1,R6
+beq L59
+*line 436
+move #1,_legato
+*line 437
+L59:
+*line 438
+*line 439
+cmp #2,_ndisp
+bne L60
+tst _velflag
+beq L60
+tst _recsw
+bne L60
+*line 439
+move 16(R14),(sp)
+move 8(R14),-(sp)
+jsr _showvel
+addq.l #2,sp
+*line 440
+L60:
+*line 441
+move 8(R14),R8
+add.l R8,R8
+add.l #_lastvce,R8
+move R5,(R8)
+*line 442
+clr (sp)
+move R5,-(sp)
+move 14(R14),R8
+add.l R8,R8
+move.l #_tuntab,R9
+move 0(R8,R9.l),-(sp)
+move R4,-(sp)
+jsr _execkey
+addq.l #6,sp
+*line 443
+bra L42
+*line 444
+*line 445
+*line 446
+L58:
+*line 447
+*line 448
+add #1,R5
+move R5,R0
+cmp #11,R0
+ble L61
+*line 448
+clr R5
+L61:L51:L52:
+*line 421
+move R7,R0
+sub #1,R7
+tst R0
+bne L53
+L50:L42:tst.l (sp)+
+movem.l (sp)+,R3-R7/R12-R13
+unlk R14
+rts
+.data
+L41:.dc.b $25,$30,$33,$64,$0

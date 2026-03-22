@@ -1,0 +1,11 @@
+-a,100000,x,400
+bios.o
+prolog.a
+romp.o
+booter.o
+timeint.o
+libcio.a
+vlib.a
+iolib.a
+libsm.a
+lib700.a

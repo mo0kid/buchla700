@@ -1,0 +1,331 @@
+
+
+
+     GGGGRRRREEEEGGGG((((1111))))                 UUUUNNNNIIIIXXXX 5555....0000 ((((llllooooccccaaaallll))))                  GGGGRRRREEEEGGGG((((1111))))
+
+
+
+     NNNNAAAAMMMMEEEE
+          greg - compute details of Gregorian calendar
+
+     SSSSYYYYNNNNTTTTAAAAXXXX
+          ggggrrrreeeegggg YYYYeeeeaaaarrrr MMMMoooonnnntttthhhh DDDDaaaayyyyOOOOffffMMMMoooonnnntttthhhh [[[[DDDDaaaayyyyOOOOffffWWWWeeeeeeeekkkk WWWWeeeeeeeekkkkOOOOffffMMMMoooonnnntttthhhh DDDDaaaayyyyOOOOffffYYYYeeeeaaaarrrr
+          JJJJuuuulllliiiiaaaannnnDDDDaaaayyyy]]]]
+
+     SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
+          _G_r_e_g provides calendar information.  It approximates the
+          functionality of unix cal except that the information is
+          provided in a way that is appropriate for use in other
+          programs rather than visual display.
+
+          The internal function "gregorian" is designed to be used as
+          a component of other programs.
+
+     DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
+          The program is invertible in the sense of a logic
+          programming predicate.  That is, inputs with positive values
+          are checked for consistency; missing inputs (indicated by
+          otherwise illegal value 0) are given the correct positive
+          value if possible.
+
+          If all the output is correct, the program will exit with 0.
+
+          If the input cannot be reconciled, the program will exit
+          with 1.
+
+          If the input leaves the output indeterminate, the program
+          will exit with 2.
+
+          If the C implementation cannot support the calculation
+          because of arithmetic precision, the program will exit with
+          3.
+
+     PPPPAAAARRRRAAAAMMMMEEEETTTTEEEERRRRSSSS
+          There are seven related inputs.  Inputs 1-3 are required.
+          If inputs 4-7 are omitted, zero is assumed for each.
+
+          The _Y_e_a_r is an integer >= _1_5_8_2
+
+          The _M_o_n_t_h is an integer between _1 and _1_2.
+
+          The _D_a_y_O_f_M_o_n_t_h is an integer between _1 and _2_8, _2_9, _3_0 or _3_1
+          depending on the month.
+
+          The _D_a_y_O_f_W_e_e_k is an integer between _1 and _7 corresponding to
+          _S_u_n_d_a_y, _M_o_n_d_a_y, ... _S_a_t_u_r_d_a_y.  It is the column position of
+          the date in the conventional monthly calendar tableau.
+
+          The _W_e_e_k_O_f_M_o_n_t_h is an integer between _1 and _6 corresponding
+          to weeks in the calendar month.  It is the row position of
+
+
+
+     Page 1                                          (printed 3/10/86)
+
+
+
+
+
+
+     GGGGRRRREEEEGGGG((((1111))))                 UUUUNNNNIIIIXXXX 5555....0000 ((((llllooooccccaaaallll))))                  GGGGRRRREEEEGGGG((((1111))))
+
+
+
+          the date in the conventional monthly calendar tableau.  The
+          first of the month is always in week _1.
+
+          The _D_a_y_O_f_Y_e_a_r is an integer between _1 and _3_6_5 or _3_6_6
+
+          The _J_u_l_i_a_n_D_a_y is an integer >= _2_2_9_9_1_6_1, corresponding to _1_5
+          _O_c_t_o_b_e_r, _1_5_8_2.  It measures the time in days from 1 Jan 4713
+          BC (Julian calendar).  Each julian day starts at noon, GMT
+          of the corresponding day of the Gregorian calendar.
+          Astronomers express the relation between julian day j and
+          date d as dd.5/mm/yyyy = j.0 where both "day"s are real
+          numbers.  dd.5 is noon of day dd.  j.0 is the beginning of
+          julian day j.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     Page 2                                          (printed 3/10/86)
+
+
+
+
+
+
+     GGGGRRRREEEEGGGG((((1111))))                 UUUUNNNNIIIIXXXX 5555....0000 ((((llllooooccccaaaallll))))                  GGGGRRRREEEEGGGG((((1111))))
+
+
+
+          There are four patterns of input for the seven parameters
+          that can possibly give a correct result.  They are given
+          below.  P signifies positive integer (an input).  ?
+          signifies either 0 (an unknown) or a positive integer (an
+          input).
+                    P P P ? -- year
+                    P ? P ? -- month of year
+                    P ? ? ? -- day of month
+                    ? ? P ? -- day of week
+                    ? ? P ? -- week of month
+                    ? P ? ? -- day of year
+                    ? ? ? P -- julian day
+
+     FFFFIIIILLLLEEEESSSS
+          none
+
+     MMMMEEEETTTTHHHHOOOODDDD
+          The Gregorian Calendar was adopted starting October 15, 1582
+          (September 14, 1752 in Britain and her colonies).  Dates
+          prior to adoption were in the Julian Calendar system (no
+          relation to julian days).  Dates before the conversion are
+          denoted OS (old system); dates after the conversion are
+          denoted NS (new system).  This program will extrapolate
+          Gregorian dates back to 1 AD although it will issue a
+          warning (inconsistent) for dates prior to the adoption of
+          the Gregorian calendar.  1 BC OS immediately preceded 1 AD
+          OS (no year 0) so the algorithms are invalid, even for
+          extrapolation, prior to 1 AD.
+
+          The algorithms, some from the references below, are
+          tableless.  The collection given here is valid from January
+          1, 1 AD NS.  The algorithms, which depend on a number of _a_d
+          _h_o_c functions over integers, are cryptic but the alternative
+          of using tables does not help much.  The notation is C.
+          Logical values are to be interpreted as 1 == true and 0 ==
+          false.  Where it is supposed that the names of the functions
+          are not sufficiently mnemonic, an italic comment is
+          appended.  The code in gregorian.c is algebraically
+          simplified where possible when the functions below are back
+          substituted into other defining formulas.  More than one
+          version is given for some formulas.
+
+              LeapsBefore(y) ==  (y-1)/4 - (y-1)/100 + (y-1)/400     _l_e_a_p _y_e_a_r_s _b_e_t_w_e_e_n _1 _A_D _a_n_d _y_e_a_r _y
+
+              Leap(y) == LeapsBefore(y+1) - LeapsBefore(y)
+
+              Leap(y) == y%400 == 0 || (y%100 != 0 && y%4 == 0)
+
+              StonesNumber(y, yd) == (yd + (yd>59+Leap(y))*(2-Leap(y)) + 91)*100
+
+              DaysInYearBefore(m, y) == 3055*(m+2)/100 - 91 - (m>2)*(2-Leap(y))
+
+
+
+
+     Page 3                                          (printed 3/10/86)
+
+
+
+
+
+
+     GGGGRRRREEEEGGGG((((1111))))                 UUUUNNNNIIIIXXXX 5555....0000 ((((llllooooccccaaaallll))))                  GGGGRRRREEEEGGGG((((1111))))
+
+
+
+              DayOfYear(y, m, d) == DaysInYearBefore(m, y) + d
+
+              MonthOfYear(y, yd) == StonesNumber(y, yd)/3055 - 2
+
+              DayOfMonth(y, yd) == StonesNumber(y, yd)%3055/100 + 1
+
+              DaysInYear(y) == 365 + Leap(y)
+
+              DaysInYear(y) == DaysInYearBefore(13, y)
+
+              DaysInMonth(m, y) == ((m == 2) ? 28+Leap(y) : 30+(m==1 || m%5%3 != 1))
+
+              DaysInMonth(m, y) == DaysInYearBefore(m+1, y) - DaysInYearBefore(m, y)
+
+              JulianDaysB4(y) == (y-1)*365 + LeapsBefore(y) + 1721425
+
+              JulianDay(y, m, d) == JulianDaysBefore(y) + DayOfYear(y, m, d)
+
+              YearOf(jd) = 1 + (jd-=(17214256), jd-=(jd+1)/146097, jd+=(jd+1)/36524, jd-(jd+1)/1461)/365
+                              _y_e_a_r _i_n _w_h_i_c_h _j_u_l_i_a_n _d_a_y _j_d _o_c_c_u_r_s
+              DayOf(jd) == jd - JulianDaysBefore(YearOf(jd))
+                              _g_i_v_e_n _t_h_e _j_u_l_i_a_n _d_a_y _j_d, _d_a_y _o_f _y_e_a_r _f_r_o_m _1 _J_a_n
+
+              WeekDay(jd) = (jd+1)%7+1    _S_u_n_d_a_y = _1, _e_t_c.
+
+              Week(dm, dw) = (13 + dm - dw)/7
+                              _w_e_e_k _o_f _m_o_n_t_h _f_r_o_m _d_a_y _o_f _m_o_n_t_h _a_n_d _d_a_y _o_f _w_e_e_k
+
+     LLLLIIIIMMMMIIIITTTTSSSS
+          Inputs are converted by _a_t_o_i which does not check for non-
+          digits.  The julian day is, by definition, bounded from
+          below by 2299161 (15 October, 1582).  The program will fail
+          for implementations of C with _s_i_z_e_o_f (_l_o_n_g _i_n_t) < _4.  There
+          is no practical upper limit on year or julian day.  The
+          program extrapolates backward correctly to January 1, 1 AD
+          NS but reports the input is "inconsistent" prior to October
+          15, 1582.
+
+     SSSSEEEEEEEE AAAALLLLSSSSOOOO
+          1. Any almanac, under calendar, perpetual.  (Note the World
+          Almanac (1985, 1986) gives a julian day incorrect by one).
+
+          2. Any encyclopedia, under calendar.
+
+          3. The Astronomical Ephemeris (any year)
+
+          3. CAL(1).  The information supplied by greg corresponds to
+          cal starting September 14, 1752 AD.
+
+          4. Elmore, Perpetual Calendar, Am.J.Phys.44,3 (May 1976) pp
+          482-3.
+
+
+
+
+     Page 4                                          (printed 3/10/86)
+
+
+
+
+
+
+     GGGGRRRREEEEGGGG((((1111))))                 UUUUNNNNIIIIXXXX 5555....0000 ((((llllooooccccaaaallll))))                  GGGGRRRREEEEGGGG((((1111))))
+
+
+
+          5. Fliegel & Van Flandern, A Machine Algorithm for
+          Processing Calendar Dates, (letter to the editor) CACM 11,10
+          (October 1968) pg. 657.
+
+          6. Stone, Tableless Date Conversion. Algorithm 398.
+          Collected Algorithms from the CACM (rcvd Jan 1970) and a
+          Remark by Robertson (rcvd Dec 1970).
+
+          7. Tantzen, Conversions Between Calendar Date and Julian Day
+          Number, Algorithm 199. Collected Algorithms from the CACM
+          (August 1963).
+
+          8. Uspensky & Heaslet, Elementary Number Theory, McGraw-
+          Hill, (1939) p.206-221.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     Page 5                                          (printed 3/10/86)
+
+
+
+

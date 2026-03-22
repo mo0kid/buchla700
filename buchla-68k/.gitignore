@@ -1,0 +1,7 @@
+build
+virt
+*.a
+*.elf
+*.img
+*.abs
+notes.txt
