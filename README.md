@@ -22,7 +22,7 @@ The emulator faithfully reproduces the Buchla 700's CRT display, showing envelop
 
 ![Buchla Control iPad App](BuchlaControlScreenshot.PNG)
 
-The iPad controller provides a touch interface with 14 bar-graph faders, 14 mode buttons, an XY pad, tempo/time-scaling knobs, and a 24-key velocity-sensitive keyboard with Y-axis expression.
+The iPad controller provides a touch interface with 14 bar-graph faders, 14 mode buttons, an XY pad, tempo/time-scaling knobs, and a 24-key touch keyboard with Y-axis expression.
 
 ---
 
@@ -111,7 +111,7 @@ A JUCE-based iPad application that provides a hardware-style touch interface for
 - **XY controller pad** — 2D touch with grid, mapped to HT/VT parameters
 - **Tempo Multiplier knob** — 0.5x to 1.5x in 0.1 steps
 - **Time Scaling knob** — 0.5x to 1.5x in 0.1 steps
-- **24-key touch keyboard** — velocity-sensitive with Y-axis expression control
+- **24-key touch keyboard** — with Y-axis expression control
 - **Three fader modes** — Normal (synth parameters), Other (phase shift / CV), EQ (7-band stereo graphic EQ). Cycle with the Other/EQ/Prmtr button.
 
 ### OSC Communication
@@ -226,6 +226,16 @@ make
 ```
 
 This produces `bios.abs` and `midas.abs` which should be copied into `buchla-emu/`.
+
+---
+
+## Acknowledgements
+
+This project is based on the work of the [Buchla Emulation Project](https://bob.lopatic.de/), which created the original open-source emulation of the Buchla 700 hardware. Their careful reverse-engineering and documentation of the 700's architecture made this project possible.
+
+---
+
+*In memory of **Don Buchla** (1937–2016) — visionary instrument designer, pioneer of voltage-controlled synthesis, and creator of some of the most expressive and uncompromising electronic musical instruments ever made. The 700 was his last major instrument design: a machine that refused to simplify, insisting instead that the player rise to meet it. His instruments didn't follow convention — they asked what music could become if you abandoned the assumptions of the past. We are still finding out.*
 
 ---
 
