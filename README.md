@@ -381,18 +381,18 @@ Each configuration routes 4 oscillators (Osc1-4) through 6 index-controlled DCAs
 
 | Config | Routing |
 |--------|---------|
-| **1** | Osc2→Ind1→Osc1→Ind3→WSA, Osc4→Ind2→WSA side; mirror via Ind4-6→WSB |
-| **2** | Cross-modulation: Osc2→Osc1→WSA, Osc4→Osc3→WSB, with side inputs from modulators |
-| **3** | Parallel paths with Osc1↔Osc4 feedback loop |
-| **4** | Side-chained: Osc3 modulates both Osc1 and Osc2; Osc4 drives both outputs |
-| **5** | Dual modulation with Osc2→Osc1→WSA; Ind1 unused, WSB driven by envelope directly |
-| **6** | Cross-coupled side chains: Osc4→Osc1→WSA, Osc2→Osc3→WSB with cross-feedback |
-| **7** | Dual output from single chain: Osc3→Osc2→Osc1→WSA and WSB simultaneously; Ind5 unused |
-| **8** | Multi-output Osc4: feeds both WSA and WSB paths; Osc3 unused |
-| **9** | Dual side-chain architecture: Osc2→Osc1→WSA, Osc3→Osc4→WSB with cross-modulation |
-| **10** | Circular modulation: Osc4→Osc1→WSA, Osc2→Osc3→WSB with Osc1→Osc4 and Osc3→Osc2 feedback |
-| **11** | Three oscillators sharing one modulator (Osc2): Osc2 modulates Osc1 and Osc3; Osc4 unused |
-| **12** | Triple-output: Osc3→Osc1 feeds both WSA and WSB; Osc1, Osc2, Osc4 as side-chain inputs |
+| **00** | Osc2→Ind1→Osc1→Ind3→WSA, Osc4→Ind2→WSA side; mirror via Ind4-6→WSB |
+| **01** | Cross-modulation: Osc2→Osc1→WSA, Osc4→Osc3→WSB, with side inputs from modulators |
+| **02** | Parallel paths with Osc1↔Osc4 feedback loop |
+| **03** | Side-chained: Osc3 modulates both Osc1 and Osc2; Osc4 drives both outputs |
+| **04** | Dual modulation with Osc2→Osc1→WSA; Ind1 unused, WSB driven by envelope directly |
+| **05** | Cross-coupled side chains: Osc4→Osc1→WSA, Osc2→Osc3→WSB with cross-feedback |
+| **06** | Dual output from single chain: Osc3→Osc2→Osc1→WSA and WSB simultaneously; Ind5 unused |
+| **07** | Multi-output Osc4: feeds both WSA and WSB paths; Osc3 unused |
+| **08** | Dual side-chain architecture: Osc2→Osc1→WSA, Osc3→Osc4→WSB with cross-modulation |
+| **09** | Circular modulation: Osc4→Osc1→WSA, Osc2→Osc3→WSB with Osc1→Osc4 and Osc3→Osc2 feedback |
+| **10** | Three oscillators sharing one modulator (Osc2): Osc2 modulates Osc1 and Osc3; Osc4 unused |
+| **11** | Triple-output: Osc3→Osc1 feeds both WSA and WSB; Osc1, Osc2, Osc4 as side-chain inputs |
 
 #### Instrument Library
 
