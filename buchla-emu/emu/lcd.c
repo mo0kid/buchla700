@@ -87,38 +87,62 @@ void lcd_get_row(int32_t row, char *buf, int32_t buf_sz)
 	buf[len] = 0;
 }
 
-void lcd_get_bars(float *bars, int32_t n_bars)
-{
-	/*
-	 * Graphics area: 64 rows × 85 bytes, 6 pixels per byte = 510 px wide.
-	 * 14 fader regions, each ~36 px wide.  Sample center of each region.
-	 * Bars grow upward from the bottom (row 63).
-	 */
+#define BAR_ROW_BOT  54   /* mem_gfx row for BBase (9)   */
+#define BAR_ROW_MID  31   /* mem_gfx row for BCenter (32) */
+#define BAR_ROW_TOP  10   /* mem_gfx row for BTop (53)   */
+#define BAR_ROWS     45   /* total bar area rows */
 
+void lcd_get_bars(float *bars, int32_t n_bars, const bool *centered)
+{
 	if (SDL_LockMutex(cpu_mutex) < 0) {
 		fail("SDL_LockMutex() failed: %s", SDL_GetError());
 	}
 
 	for (int32_t i = 0; i < n_bars && i < 14; ++i) {
-		int32_t px = 18 + i * 36; /* center pixel of each fader column */
+		int32_t px = 18 + i * 36;
 		int32_t byte_x = px / GFX_PIX;
 		int32_t bit_pos = 7 - (px % GFX_PIX);
 
-		/* scan from bottom (row 63) upward, count set pixels */
-		int32_t height = 0;
+		if (centered != NULL && centered[i]) {
+			/* center-based: scan from center row outward */
+			int32_t above = 0;
 
-		for (int32_t y = GFX_H - 1; y >= 0; --y) {
-			uint8_t b = mem_gfx[y * GFX_W + byte_x];
+			for (int32_t y = BAR_ROW_MID - 1; y >= BAR_ROW_TOP; --y) {
+				if ((mem_gfx[y * GFX_W + byte_x] >> bit_pos) & 1)
+					++above;
+				else
+					break;
+			}
 
-			if ((b >> bit_pos) & 1) {
-				++height;
+			int32_t below = 0;
+
+			for (int32_t y = BAR_ROW_MID + 1; y <= BAR_ROW_BOT; ++y) {
+				if ((mem_gfx[y * GFX_W + byte_x] >> bit_pos) & 1)
+					++below;
+				else
+					break;
 			}
-			else {
-				break;
-			}
+
+			if (above > 0)
+				bars[i] = 0.5f + ((float)above / 21.0f) * 0.5f;
+			else if (below > 0)
+				bars[i] = 0.5f - ((float)below / 23.0f) * 0.5f;
+			else
+				bars[i] = 0.5f;
 		}
+		else {
+			/* bottom-based: scan above BBase baseline marker */
+			int32_t height = 0;
 
-		bars[i] = (float)height / (float)GFX_H;
+			for (int32_t y = BAR_ROW_BOT - 1; y >= BAR_ROW_TOP; --y) {
+				if ((mem_gfx[y * GFX_W + byte_x] >> bit_pos) & 1)
+					++height;
+				else
+					break;
+			}
+
+			bars[i] = (float)height / (float)(BAR_ROWS - 1);
+		}
 	}
 
 	if (SDL_UnlockMutex(cpu_mutex) < 0) {

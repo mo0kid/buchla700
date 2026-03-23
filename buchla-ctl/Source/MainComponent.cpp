@@ -511,22 +511,9 @@ void MainComponent::initializeFaderValues()
         }
     }
     
-    // Initialize Other mode (phase shift controls)
-    // Map to desktop AssignmentsPage default values
+    // Initialize Other mode — all bottom-based bars (firmware uses BarBset)
     for (int i = 0; i < 14; ++i) {
-        if (i == 1) { // Aux
-            otherModeValues[i] = 0.0f;
-        } else if (i == 2) { // Depth - maps to 0-99% range  
-            otherModeValues[i] = 0.5f; // 50% = ~50 depth
-        } else if (i == 3) { // Rate - maps to 0.1-5.0Hz range
-            otherModeValues[i] = 0.3f; // 30% = ~1.5Hz (default rate)
-        } else if (i == 4) { // Intensity - maps to 0-99% range
-            otherModeValues[i] = 0.3f; // 30% = ~30 intensity
-        } else if (i >= 5 && i <= 8) { // CV1-4
-            otherModeValues[i] = 0.5f;
-        } else {
-            otherModeValues[i] = 0.0f; // Unused faders
-        }
+        otherModeValues[i] = 0.0f;
     }
     
     // Initialize EQ mode (all bands at 0dB = 50%)
@@ -576,6 +563,23 @@ void MainComponent::restoreFaderValues()
     
     if (sourceArray) {
         for (int i = 0; i < 14; ++i) {
+            // Update fader type per mode
+            switch (currentFaderMode) {
+                case FaderMode::Normal:
+                    // Locn=0, Frq1-4=5-8, Filtr=12: offset; rest: gain
+                    if (i == 0 || (i >= 5 && i <= 8) || i == 12)
+                        dataFaders[i]->setFaderType(RelativeFader::OffsetFader);
+                    else
+                        dataFaders[i]->setFaderType(RelativeFader::GainFader);
+                    break;
+                case FaderMode::Other:
+                    dataFaders[i]->setFaderType(RelativeFader::GainFader);
+                    break;
+                case FaderMode::EQ:
+                    dataFaders[i]->setFaderType(RelativeFader::OffsetFader);
+                    break;
+            }
+
             // Restore visual position only — don't send OSC to avoid
             // flooding the emulator's keyboard buffer
             dataFaders[i]->setValue((*sourceArray)[i], juce::dontSendNotification);

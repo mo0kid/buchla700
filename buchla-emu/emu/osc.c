@@ -124,6 +124,8 @@ static bool connected = false;
 static char prev_row1[96];
 static char prev_row7[96];
 static float prev_bars[14];
+static bool bar_centered[14];
+static int32_t fader_index_offset = 0;
 static void osc_poll_lcd(void);
 static void osc_dump_all_rows(void);
 
@@ -440,15 +442,7 @@ static void handle_button(const uint8_t *data, int32_t len, int32_t pos,
 	}
 	else {
 		kbd_osc_but_off(sig);
-		/* dump LCD after button release to see what the firmware drew */
 		osc_dump_all_rows();
-
-		/* invalidate cached bar positions so all faders get re-sent
-		 * on next poll — a page change redraws bars for different
-		 * parameters and the iPad needs a full refresh */
-		for (int32_t i = 0; i < 14; ++i) {
-			prev_bars[i] = -1.0f;
-		}
 	}
 }
 
@@ -929,6 +923,7 @@ static void osc_dump_all_rows(void)
 static void osc_poll_lcd(void)
 {
 	char row[96];
+	bool text_changed = false;
 
 	/* row 0: button labels */
 	lcd_get_row(0, row, (int32_t)sizeof row);
@@ -937,6 +932,31 @@ static void osc_poll_lcd(void)
 		inf("osc lcd row0: [%.40s...]", row);
 		osc_send_lcd_row(0, row);
 		memcpy(prev_row1, row, sizeof prev_row1);
+
+		/* detect page from button labels (buttons show where you CAN go):
+		 *   "Prmtr" button visible → we're on EQ page
+		 *   " EQ " button visible  → we're on OTHER page
+		 *   otherwise              → PRMTR / VOICE / etc */
+		if (strstr(row, "Prmtr") != NULL) {
+			/* EQ page */
+			for (int32_t i = 0; i < 14; ++i)
+				bar_centered[i] = true;
+			fader_index_offset = 300;
+		} else if (strstr(row, " EQ ") != NULL) {
+			/* OTHER page */
+			for (int32_t i = 0; i < 14; ++i)
+				bar_centered[i] = false;
+			fader_index_offset = 200;
+		} else {
+			/* PRMTR / VOICE */
+			for (int32_t i = 0; i < 14; ++i)
+				bar_centered[i] = fader_is_offset[i];
+			fader_index_offset = 0;
+		}
+
+		for (int32_t i = 0; i < 14; ++i)
+			prev_bars[i] = -1.0f;
+		text_changed = true;
 	}
 
 	/* row 7: fader/pot labels */
@@ -946,17 +966,21 @@ static void osc_poll_lcd(void)
 		inf("osc lcd row7: [%.40s...]", row);
 		osc_send_lcd_row(7, row);
 		memcpy(prev_row7, row, sizeof prev_row7);
+		text_changed = true;
 	}
+
+	if (text_changed)
+		return; /* let firmware redraw bars before reading */
 
 	/* bar graphs: fader positions from graphics memory */
 	float bars[14];
-	lcd_get_bars(bars, 14);
+	lcd_get_bars(bars, 14, bar_centered);
 
 	for (int32_t i = 0; i < 14; ++i) {
 		float diff = bars[i] - prev_bars[i];
 
 		if (diff > 0.01f || diff < -0.01f) {
-			osc_send_fader(i, bars[i]);
+			osc_send_fader(fader_index_offset + i, bars[i]);
 			prev_bars[i] = bars[i];
 		}
 	}

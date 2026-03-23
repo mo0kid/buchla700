@@ -143,7 +143,7 @@ extern void lcd_write(uint32_t off, int32_t sz, uint32_t val);
 
 extern void lcd_sdl(void);
 extern void lcd_get_row(int32_t row, char *buf, int32_t buf_sz);
-extern void lcd_get_bars(float *bars, int32_t n_bars);
+extern void lcd_get_bars(float *bars, int32_t n_bars, const bool *centered);
 
 extern void ser_init(void);
 extern void ser_quit(void);
