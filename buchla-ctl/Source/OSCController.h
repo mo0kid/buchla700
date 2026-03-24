@@ -53,6 +53,10 @@ public:
     // LCD row update callback (row number, row text)
     using LcdRowCallback = std::function<void(int row, const juce::String& text)>;
     void setLcdRowCallback(LcdRowCallback callback) { lcdRowCallback = callback; }
+
+    // Fader centered bitmask callback (bit i = 1 means fader i is bipolar)
+    using FaderCenteredCallback = std::function<void(int bitmask)>;
+    void setFaderCenteredCallback(FaderCenteredCallback callback) { faderCenteredCallback = std::move(callback); }
     
     // OSC Receiver implementation
     void oscMessageReceived(const juce::OSCMessage& message) override;
@@ -78,6 +82,7 @@ private:
     DataColumnCallback dataColumnCallback;
     FaderUpdateCallback faderUpdateCallback;
     LcdRowCallback lcdRowCallback;
+    FaderCenteredCallback faderCenteredCallback;
     
     // Helper methods
     void handleEmulatorMessage(const juce::OSCMessage& message);

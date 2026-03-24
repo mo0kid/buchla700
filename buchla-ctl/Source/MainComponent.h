@@ -27,6 +27,7 @@ public:
     ~MainComponent() override;
 
     void paint(juce::Graphics&) override;
+    void paintOverChildren(juce::Graphics&) override;
     void resized() override;
     
     // Timer callback for regular updates
@@ -73,30 +74,12 @@ private:
     void faderButtonClicked(int buttonIndex);
     void dataFaderChanged(int faderIndex, float value);
     void topControlChanged();
-    void resetFadersToDefaults();
-    
-    // Fader mode system
-    enum class FaderMode {
-        Normal,    // Standard parameter faders
-        Other,     // Phase shift controls + unused
-        EQ         // 7-band stereo EQ controls
-    };
-    
-    FaderMode currentFaderMode = FaderMode::Normal;
-    void cycleFaderMode();
-    void updateFaderLabels();
-    void updateButtonLabels();
-    
-    // Value persistence for each fader mode
-    std::array<float, 14> normalModeValues;
-    std::array<float, 14> otherModeValues;
-    std::array<float, 14> eqModeValues;
-    void initializeFaderValues();
-    void saveFaderValues();
-    void restoreFaderValues();
-    void syncOtherModeWithDesktop();
+
     void handleIncomingFaderUpdate(int faderIndex, float value);
+    void handleFaderCentered(int bitmask);
     void handleLcdRow(int row, const juce::String& text);
+    void blankDisplay();
+    bool connectedToEmulator = false;
     void parseLcdLabels(const juce::String& text, int count,
                         std::function<void(int, const juce::String&)> setter);
 

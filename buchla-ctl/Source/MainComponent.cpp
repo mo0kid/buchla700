@@ -35,14 +35,35 @@ MainComponent::MainComponent()
     
     // Start timer for regular updates
     startTimer(50); // 20 FPS
-    
-    // Initialize fader value arrays with default values
-    initializeFaderValues();
-    
+
+    // Register all callbacks BEFORE connecting, so the emulator's
+    // immediate response isn't dropped
+    oscController->setConnectionCallback([this](bool isConnected) {
+        if (!isConnected) {
+            juce::MessageManager::callAsync([this]() {
+                connectedToEmulator = false;
+                blankDisplay();
+                repaint();
+            });
+        }
+    });
+
+    oscController->setFaderUpdateCallback([this](int faderIndex, float value) {
+        handleIncomingFaderUpdate(faderIndex, value);
+    });
+
+    oscController->setLcdRowCallback([this](int row, const juce::String& text) {
+        handleLcdRow(row, text);
+    });
+
+    oscController->setFaderCenteredCallback([this](int bitmask) {
+        handleFaderCentered(bitmask);
+    });
+
     // Connect to desktop Buchla700 app
     // Try common desktop IP addresses on local network
     bool connected = false;
-    
+
     // Try different local network addresses
     juce::StringArray addressesToTry = {
         "192.168.0.18",    // Actual desktop IP (primary)
@@ -54,7 +75,7 @@ MainComponent::MainComponent()
         "10.0.0.100",      // Alternative subnet
         "127.0.0.1"        // Localhost (for simulator testing)
     };
-    
+
     for (const auto& address : addressesToTry) {
         if (oscController->connectToEmulator(address, 9001, 9002)) {
             connected = true;
@@ -62,26 +83,18 @@ MainComponent::MainComponent()
             break;
         }
     }
-    
+
     if (!connected) {
         juce::Logger::writeToLog("BuchlaControl: Could not connect to Buchla700 desktop app");
         juce::Logger::writeToLog("BuchlaControl: Make sure desktop app is running and on same network");
         juce::Logger::writeToLog("BuchlaControl: No OSC communication will work until connected");
     }
-    
-    // Set up fader update callback to handle incoming changes from desktop
-    oscController->setFaderUpdateCallback([this](int faderIndex, float value) {
-        handleIncomingFaderUpdate(faderIndex, value);
-    });
 
-    // Set up LCD row callback to mirror emulator display
-    oscController->setLcdRowCallback([this](int row, const juce::String& text) {
-        handleLcdRow(row, text);
-    });
-    
     // Set size for iPad landscape orientation
     setSize(1024, 768);
-    
+
+    // Start blank — emulator will populate on connect
+    blankDisplay();
 }
 
 MainComponent::~MainComponent()
@@ -93,6 +106,19 @@ void MainComponent::paint(juce::Graphics& g)
 {
     // Fill with dark background - NO panel separators/rectangles
     g.fillAll(BuchlaColors::background);
+}
+
+void MainComponent::paintOverChildren(juce::Graphics& g)
+{
+    if (!oscController->isConnected()) {
+        g.setColour(juce::Colours::red);
+        g.setFont(juce::Font(28.0f));
+        g.drawText("OSC NOT CONNECTED!", dataFadersArea, juce::Justification::centred);
+    } else if (!connectedToEmulator) {
+        g.setColour(juce::Colours::red);
+        g.setFont(juce::Font(28.0f));
+        g.drawText("EMU NOT CONNECTED!", dataFadersArea, juce::Justification::centred);
+    }
 }
 
 void MainComponent::resized()
@@ -165,10 +191,10 @@ void MainComponent::setupTopControls()
 
 void MainComponent::setupFaderButtons()
 {
-    // Labels that correspond to faders
+    // Labels start blank — emulator sends them via LCD row 0
     juce::StringArray faderButtonNames = {
-        "Quiet", "ROMP", "Lamp", "Clock", "_P/R ", "GoTo", "Instr", 
-        "Asgmt", "Load", " ", " ", "Other", "Voice", "Init"
+        " ", " ", " ", " ", " ", " ", " ",
+        " ", " ", " ", " ", " ", " ", " "
     };
     
     for (int i = 0; i < 14; ++i)
@@ -188,31 +214,14 @@ void MainComponent::setupFaderButtons()
 
 void MainComponent::setupDataFaders()
 {
-    // Labels that correspond to LCD display data
-    juce::StringArray faderLabelNames = {
-        "Locn", "Level", "Ind 1", "Ind 2", "Ind 3", "Frq 1", "Frq 2", 
-        "Frq 3", "Frq 4", "Ind 4", "Ind 5", "Ind 6", "Filtr", "Reson"
-    };
-    
     for (int i = 0; i < 14; ++i)
     {
-        // Create fader (no text box)
+        // Create fader (no text box) — all start as gain faders at zero
         auto fader = std::make_unique<RelativeFader>(RelativeFader::LinearVertical,
                                                      RelativeFader::NoTextBox);
-        
-        // Set fader type FIRST, then values
-        // Locn=0, Frq1=5, Frq2=6, Frq3=7, Frq4=8, Filtr=12
-        if (i == 0 || (i >= 5 && i <= 8) || i == 12) {
-            // Locn, Frq 1-4, Filtr: offset faders
-            fader->setFaderType(RelativeFader::OffsetFader);
-            fader->setRange(0.0, 1.0, 0.001);
-            fader->setValue(0.5);
-        } else {
-            // Level, Reson, Ind 1-6: gain faders  
-            fader->setFaderType(RelativeFader::GainFader);
-            fader->setRange(0.0, 1.0, 0.001);
-            fader->setValue(0.0);
-        }
+        fader->setFaderType(RelativeFader::GainFader);
+        fader->setRange(0.0, 1.0, 0.001);
+        fader->setValue(0.0);
         
         // Force initial repaint to ensure display is updated
         fader->repaint();
@@ -232,8 +241,8 @@ void MainComponent::setupDataFaders()
         dataFaders[i] = std::move(fader);
         addAndMakeVisible(dataFaders[i].get());
         
-        // Create label
-        auto label = std::make_unique<juce::Label>("", faderLabelNames[i]);
+        // Create label — starts blank, emulator sends via LCD row 7
+        auto label = std::make_unique<juce::Label>("", "");
         label->setColour(juce::Label::textColourId, BuchlaColors::labelText);
         label->setJustificationType(juce::Justification::centred);
         
@@ -310,33 +319,11 @@ void MainComponent::faderButtonClicked(int buttonIndex)
     // All buttons are momentary: send press then release to the emulator
     oscController->sendButtonEvent(buttonIndex, true);
     oscController->sendButtonEvent(buttonIndex, false);
-
-    // Cycle local fader mode after sending button to emulator
-    // (button 11 = "Other"/"EQ"/"Prmtr")
-    if (buttonIndex == 11) {
-        cycleFaderMode();
-    }
 }
 
 void MainComponent::dataFaderChanged(int faderIndex, float value)
 {
-    // Send different OSC messages based on fader mode
-    switch (currentFaderMode) {
-        case FaderMode::Normal:
-            // Standard fader behavior
-            oscController->sendFaderEvent(faderIndex, value);
-            break;
-            
-        case FaderMode::Other:
-            // Phase shift and auxiliary controls
-            oscController->sendFaderEvent(faderIndex + 200, value); // Offset by 200 for Other mode
-            break;
-            
-        case FaderMode::EQ:
-            // EQ band controls
-            oscController->sendFaderEvent(faderIndex + 300, value); // Offset by 300 for EQ mode
-            break;
-    }
+    oscController->sendFaderEvent(faderIndex, value);
 }
 
 void MainComponent::topControlChanged()
@@ -355,296 +342,45 @@ void MainComponent::topControlChanged()
     oscController->sendTimeScaling(timeScaling);
 }
 
-void MainComponent::resetFadersToDefaults()
-{
-    // Reset fader values to defaults for the current mode only
-    
-    for (int i = 0; i < 14; ++i)
-    {
-        float defaultValue = 0.0f; // Default for most faders
-        
-        switch (currentFaderMode) {
-            case FaderMode::Normal:
-                // Normal mode: Locn, Frq 1-4, Filtr = 0.5 (neutral), others = 0.0
-                if (i == 0 || (i >= 5 && i <= 8) || i == 12) {
-                    defaultValue = 0.5f; // Neutral for Locn, Frq 1-4, Filtr
-                } else {
-                    defaultValue = 0.0f; // No effect for Level, Reson, Ind 1-6
-                }
-                break;
-                
-            case FaderMode::Other:
-                // Other mode: Phase shift controls get sensible defaults, others = 0.0
-                if (i == 2) { // Depth
-                    defaultValue = 0.0f; // 0% depth
-                } else if (i == 3) { // Rate  
-                    defaultValue = 0.0f; // 0.1Hz (minimum rate)
-                } else if (i == 4) { // Intensity
-                    defaultValue = 0.0f; // 0% intensity
-                } else if (i >= 5 && i <= 8) { // CV1-4
-                    defaultValue = 0.5f; // Neutral for CV controls
-                } else {
-                    defaultValue = 0.0f; // Unused faders
-                }
-                break;
-                
-            case FaderMode::EQ:
-                // EQ mode: All bands reset to 0dB (50%)
-                defaultValue = 0.5f;
-                break;
-        }
-        
-        // Set the fader value and send OSC message
-        dataFaders[i]->setValue(defaultValue, juce::dontSendNotification);
-        
-        // Send the change to the desktop synth
-        dataFaderChanged(i, defaultValue);
-    }
-    
-    // Save the reset values to the current mode's array
-    saveFaderValues();
-}
-
-// Fader mode system implementation
-void MainComponent::cycleFaderMode()
-{
-    // Save current fader values before switching
-    saveFaderValues();
-    
-    switch (currentFaderMode) {
-        case FaderMode::Normal:
-            currentFaderMode = FaderMode::Other;
-            break;
-        case FaderMode::Other:
-            currentFaderMode = FaderMode::EQ;
-            break;
-        case FaderMode::EQ:
-            currentFaderMode = FaderMode::Normal;
-            break;
-    }
-    
-    // Restore fader values for the new mode
-    restoreFaderValues();
-    
-    updateButtonLabels();
-    updateFaderLabels();
-}
-
-void MainComponent::updateButtonLabels()
-{
-    juce::StringArray buttonNames;
-
-    switch (currentFaderMode) {
-        case FaderMode::Normal:
-            buttonNames = {
-                "Quiet", "ROMP", "Lamp", "Clock", "_P/R ", "GoTo", "Instr",
-                "Asgmt", "Load", " ", " ", "Other", "Voice", "Init"
-            };
-            break;
-
-        case FaderMode::Other:
-            buttonNames = {
-                "Quiet", " ", " ", " ", " ", " ", " ",
-                " ", " ", " ", " ", "EQ", " ", "Init"
-            };
-            break;
-
-        case FaderMode::EQ:
-            buttonNames = {
-                "Quiet", " ", " ", " ", " ", " ", " ",
-                " ", " ", " ", " ", "Prmtr", " ", "Init"
-            };
-            break;
-    }
-
-    for (int i = 0; i < 14; ++i) {
-        if (i < buttonNames.size()) {
-            faderButtons[i]->setButtonText(buttonNames[i]);
-        }
-    }
-}
-
-void MainComponent::updateFaderLabels()
-{
-    juce::StringArray labelNames;
-
-    switch (currentFaderMode) {
-        case FaderMode::Normal:
-            labelNames = {
-                "Locn", "Level", "Ind 1", "Ind 2", "Ind 3", "Frq 1", "Frq 2",
-                "Frq 3", "Frq 4", "Ind 4", "Ind 5", "Ind 6", "Filtr", "Reson"
-            };
-            break;
-
-        case FaderMode::Other:
-            labelNames = {
-                "---", "Aux", "Depth", "Rate", "Inten", "CV1", "CV2",
-                "CV3", "CV4", "---", "---", "---", "---", "---"
-            };
-            break;
-
-        case FaderMode::EQ:
-            labelNames = {
-                "50", "150", "400", "1k", "2.5k", "6k", "15k",
-                "50", "150", "400", "1k", "2.5k", "6k", "15k"
-            };
-            break;
-    }
-
-    // Update fader labels
-    for (int i = 0; i < 14; ++i) {
-        if (i < labelNames.size()) {
-            faderLabels[i]->setText(labelNames[i], juce::dontSendNotification);
-        }
-    }
-}
-
-void MainComponent::initializeFaderValues()
-{
-    // Initialize Normal mode with default synthesizer values
-    for (int i = 0; i < 14; ++i) {
-        // Locn=0, Frq1=5, Frq2=6, Frq3=7, Frq4=8, Filtr=12
-        if (i == 0 || (i >= 5 && i <= 8) || i == 12) {
-            normalModeValues[i] = 0.5f; // Neutral for Locn, Frq 1-4, Filtr
-        } else {
-            normalModeValues[i] = 0.0f; // No effect for Level, Reson, Ind 1-6
-        }
-    }
-    
-    // Initialize Other mode — all bottom-based bars (firmware uses BarBset)
-    for (int i = 0; i < 14; ++i) {
-        otherModeValues[i] = 0.0f;
-    }
-    
-    // Initialize EQ mode (all bands at 0dB = 50%)
-    for (int i = 0; i < 14; ++i) {
-        eqModeValues[i] = 0.5f; // 0dB for all EQ bands
-    }
-}
-
-void MainComponent::saveFaderValues()
-{
-    std::array<float, 14>* targetArray = nullptr;
-    
-    switch (currentFaderMode) {
-        case FaderMode::Normal:
-            targetArray = &normalModeValues;
-            break;
-        case FaderMode::Other:
-            targetArray = &otherModeValues;
-            break;
-        case FaderMode::EQ:
-            targetArray = &eqModeValues;
-            break;
-    }
-    
-    if (targetArray) {
-        for (int i = 0; i < 14; ++i) {
-            (*targetArray)[i] = static_cast<float>(dataFaders[i]->getValue());
-        }
-    }
-}
-
-void MainComponent::restoreFaderValues()
-{
-    const std::array<float, 14>* sourceArray = nullptr;
-    
-    switch (currentFaderMode) {
-        case FaderMode::Normal:
-            sourceArray = &normalModeValues;
-            break;
-        case FaderMode::Other:
-            sourceArray = &otherModeValues;
-            break;
-        case FaderMode::EQ:
-            sourceArray = &eqModeValues;
-            break;
-    }
-    
-    if (sourceArray) {
-        for (int i = 0; i < 14; ++i) {
-            // Update fader type per mode
-            switch (currentFaderMode) {
-                case FaderMode::Normal:
-                    // Locn=0, Frq1-4=5-8, Filtr=12: offset; rest: gain
-                    if (i == 0 || (i >= 5 && i <= 8) || i == 12)
-                        dataFaders[i]->setFaderType(RelativeFader::OffsetFader);
-                    else
-                        dataFaders[i]->setFaderType(RelativeFader::GainFader);
-                    break;
-                case FaderMode::Other:
-                    dataFaders[i]->setFaderType(RelativeFader::GainFader);
-                    break;
-                case FaderMode::EQ:
-                    dataFaders[i]->setFaderType(RelativeFader::OffsetFader);
-                    break;
-            }
-
-            // Restore visual position only — don't send OSC to avoid
-            // flooding the emulator's keyboard buffer
-            dataFaders[i]->setValue((*sourceArray)[i], juce::dontSendNotification);
-        }
-    }
-}
-
-void MainComponent::syncOtherModeWithDesktop()
-{
-    // When entering Other mode, request current phase shift values from desktop
-    // For now, we'll send the current fader values and let the desktop sync back
-    // This creates a feedback loop that will settle on the correct values
-    
-    if (currentFaderMode == FaderMode::Other) {
-        // Send current Other mode values to get desktop to sync back
-        for (int i = 2; i <= 4; ++i) { // Depth, Rate, Intensity
-            dataFaderChanged(i, otherModeValues[i]);
-        }
-    }
-}
-
 void MainComponent::handleIncomingFaderUpdate(int faderIndex, float value)
 {
-    // This callback arrives from the OSC thread — use MessageManager for UI updates
     juce::MessageManager::callAsync([this, faderIndex, value]() {
-        // Determine which fader mode this update belongs to based on faderIndex
-        FaderMode targetMode = FaderMode::Normal;
-        int localFaderIndex = faderIndex;
-
-        if (faderIndex >= 300) {
-            targetMode = FaderMode::EQ;
-            localFaderIndex = faderIndex - 300;
-        } else if (faderIndex >= 200) {
-            targetMode = FaderMode::Other;
-            localFaderIndex = faderIndex - 200;
-        } else {
-            targetMode = FaderMode::Normal;
-            localFaderIndex = faderIndex;
-        }
-
-        if (localFaderIndex >= 0 && localFaderIndex < 14) {
-            // ignore incoming updates while the user is actively jogging
-            // this fader — the jog value is authoritative
-            if (currentFaderMode == targetMode &&
-                dataFaders[localFaderIndex]->isJogActive()) {
+        if (faderIndex >= 0 && faderIndex < 14) {
+            if (dataFaders[faderIndex]->isJogActive())
                 return;
-            }
-
-            switch (targetMode) {
-                case FaderMode::Normal:
-                    normalModeValues[localFaderIndex] = value;
-                    break;
-                case FaderMode::Other:
-                    otherModeValues[localFaderIndex] = value;
-                    break;
-                case FaderMode::EQ:
-                    eqModeValues[localFaderIndex] = value;
-                    break;
-            }
-
-            if (currentFaderMode == targetMode) {
-                dataFaders[localFaderIndex]->setValue(value, juce::dontSendNotification);
-            }
+            dataFaders[faderIndex]->setValue(value, juce::dontSendNotification);
         }
     });
+}
+
+void MainComponent::handleFaderCentered(int bitmask)
+{
+    juce::MessageManager::callAsync([this, bitmask]() {
+        for (int i = 0; i < 14; ++i) {
+            bool centered = (bitmask >> i) & 1;
+            if (centered) {
+                dataFaders[i]->setFaderType(RelativeFader::OffsetFader);
+                if (!dataFaders[i]->isJogActive())
+                    dataFaders[i]->setValue(0.5, juce::dontSendNotification);
+            } else {
+                dataFaders[i]->setFaderType(RelativeFader::GainFader);
+                if (!dataFaders[i]->isJogActive())
+                    dataFaders[i]->setValue(0.0, juce::dontSendNotification);
+            }
+            dataFaders[i]->repaint();
+        }
+    });
+}
+
+void MainComponent::blankDisplay()
+{
+    for (int i = 0; i < 14; ++i) {
+        dataFaders[i]->setFaderType(RelativeFader::GainFader);
+        dataFaders[i]->setValue(0.0, juce::dontSendNotification);
+        dataFaders[i]->repaint();
+        faderLabels[i]->setText("", juce::dontSendNotification);
+        faderButtons[i]->setButtonText(" ");
+    }
 }
 
 void MainComponent::parseLcdLabels(const juce::String& text, int count,
@@ -674,6 +410,10 @@ void MainComponent::handleLcdRow(int row, const juce::String& text)
 
     // This callback arrives from the OSC thread — use MessageManager for UI updates
     juce::MessageManager::callAsync([this, row, text]() {
+        if (!connectedToEmulator) {
+            connectedToEmulator = true;
+            repaint();
+        }
         if (row == 0) {
             // Row 0: button labels
             parseLcdLabels(text, 14, [this](int i, const juce::String& label) {

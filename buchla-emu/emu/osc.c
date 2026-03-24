@@ -510,24 +510,15 @@ static void handle_fader(const uint8_t *data, int32_t len, int32_t pos,
 	n = osc_read_float(data, len, pos, &value);
 	if (n < 0) return;
 
-	/* indices 200+ and 300+ are mode variants */
-
 	int32_t base = idx;
-
-	if (base >= 200 && base < 300) {
-		base -= 200;
-	}
-	else if (base >= 300) {
-		base -= 300;
-	}
 
 	if (base < 0 || base > 13) {
 		return;
 	}
 
-	/* write directly to FPU for immediate DSP effect */
+	/* write directly to FPU only on PRMTR page (offset 0) */
 
-	if (idx < 14) {
+	if (fader_index_offset == 0) {
 		fader_write_fpu(base, value);
 	}
 
@@ -864,6 +855,38 @@ void osc_send_fader(int32_t index, float value)
 	SDLNet_FreePacket(pkt);
 }
 
+void osc_send_centered(void)
+{
+	if (!connected || send_sock == NULL) {
+		return;
+	}
+
+	int32_t mask = 0;
+
+	for (int32_t i = 0; i < 14; ++i) {
+		if (bar_centered[i]) {
+			mask |= (1 << i);
+		}
+	}
+
+	UDPpacket *pkt = SDLNet_AllocPacket(OSC_PKT_SZ);
+
+	if (pkt == NULL) {
+		return;
+	}
+
+	int32_t pos = 0;
+	osc_write_str(pkt->data, &pos, "/taunus/fader/centered");
+	osc_write_str(pkt->data, &pos, ",i");
+	osc_write_int32(pkt->data, &pos, mask);
+
+	pkt->len = pos;
+	pkt->address = target_addr;
+
+	SDLNet_UDP_Send(send_sock, -1, pkt);
+	SDLNet_FreePacket(pkt);
+}
+
 /* -------------------------------------------------------------------------- */
 /* LCD text forwarding                                                        */
 /* -------------------------------------------------------------------------- */
@@ -954,6 +977,8 @@ static void osc_poll_lcd(void)
 			fader_index_offset = 0;
 		}
 
+		osc_send_centered();
+
 		for (int32_t i = 0; i < 14; ++i)
 			prev_bars[i] = -1.0f;
 		text_changed = true;
@@ -980,7 +1005,7 @@ static void osc_poll_lcd(void)
 		float diff = bars[i] - prev_bars[i];
 
 		if (diff > 0.01f || diff < -0.01f) {
-			osc_send_fader(fader_index_offset + i, bars[i]);
+			osc_send_fader(i, bars[i]);
 			prev_bars[i] = bars[i];
 		}
 	}

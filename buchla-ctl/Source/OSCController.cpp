@@ -33,10 +33,11 @@ bool OSCController::connectToEmulator(const juce::String &ipAddress, int sendPor
   // Add this as listener
   addListener(this);
 
-  // Send connection announcement
-  sendMessage("/taucontrol/connect", juce::String("BuchlaControl iPad"));
-
   updateConnectionStatus(true);
+
+  // Send connection announcement (must be after updateConnectionStatus
+  // so that sendMessage's connected check passes)
+  sendMessage("/taucontrol/connect", juce::String("BuchlaControl iPad"));
 
   juce::Logger::writeToLog("OSCController: Connected to emulator at " + targetIP +
                            ":" + juce::String(targetPort) +
@@ -146,6 +147,11 @@ void OSCController::oscMessageReceived(const juce::OSCMessage &message) {
     handleParameterUpdate(message);
   } else if (address == "/taunus/status") {
     handleConnectionStatus(message);
+  } else if (address == "/taunus/fader/centered") {
+    if (message.size() >= 1 && faderCenteredCallback) {
+      int mask = message[0].getInt32();
+      faderCenteredCallback(mask);
+    }
   } else if (address.startsWith("/taunus/")) {
     handleEmulatorMessage(message);
   } else if (address == "/taucontrol/fader") {
