@@ -126,8 +126,12 @@ static char prev_row7[96];
 static float prev_bars[14];
 static bool bar_centered[14];
 static int32_t fader_index_offset = 0;
+static float fader_hold[14] = {
+	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+};
 static void osc_poll_lcd(void);
 static void osc_dump_all_rows(void);
+static void fader_write_fpu(int32_t fader_idx, float value);
 
 static bool xy_active = false;
 
@@ -204,6 +208,16 @@ static void osc_smooth_tick(void)
 		}
 
 		sm_prs_dirty = false;
+	}
+
+	/* re-apply fader holds so new notes don't revert to envelope values */
+
+	if (fader_index_offset == 0) {
+		for (int32_t i = 0; i < 14; ++i) {
+			if (fader_hold[i] >= 0.0f) {
+				fader_write_fpu(i, fader_hold[i]);
+			}
+		}
 	}
 }
 
@@ -520,6 +534,7 @@ static void handle_fader(const uint8_t *data, int32_t len, int32_t pos,
 
 	if (fader_index_offset == 0) {
 		fader_write_fpu(base, value);
+		fader_hold[base] = value;
 	}
 
 	/* throttle kbd scanner updates to avoid buffer clog —
@@ -979,8 +994,10 @@ static void osc_poll_lcd(void)
 
 		osc_send_centered();
 
-		for (int32_t i = 0; i < 14; ++i)
+		for (int32_t i = 0; i < 14; ++i) {
 			prev_bars[i] = -1.0f;
+			fader_hold[i] = -1.0f;
+		}
 		text_changed = true;
 	}
 
