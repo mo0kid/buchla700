@@ -51,12 +51,20 @@ endif
 ifeq ($(OS), Darwin)
 FLAGS_EMU +=	-D EMU_OS_X -I /opt/homebrew/include
 FLAGS_LNK :=	$(FLAGS) -Wall -Wextra
+
+ifneq ($(wildcard $(SDL2_LIB)/libSDL2.a),)
+# Custom static SDL2 build at /opt/sdl2 — minimal deps, direct .a linking
 LIBS :=			$(SDL2_LIB)/libSDL2.a \
 				$(firstword $(wildcard $(SDL2_LIB)/libSDL2_net.a $(SDL2_HB)/lib/libSDL2_net.a)) \
 				$(SDL2_LIB)/libSDL2_ttf.a \
 				$(firstword $(wildcard $(SDL2_LIB)/libfreetype.a $(SDL2_HB)/lib/libfreetype.a)) \
-				$(firstword $(wildcard $(RTMIDI_LIB)/librtmidi.a $(SDL2_HB)/lib/librtmidi.a)) \
-				-framework AppKit \
+				$(firstword $(wildcard $(RTMIDI_LIB)/librtmidi.a $(SDL2_HB)/lib/librtmidi.a))
+else
+# Homebrew — dynamic linking avoids chasing transitive static deps
+LIBS :=			-L$(SDL2_HB)/lib -lSDL2 -lSDL2_net -lSDL2_ttf -lfreetype -lrtmidi
+endif
+
+LIBS +=			-framework AppKit \
 				-framework AudioToolbox \
 				-framework Carbon \
 				-framework CoreAudio \
