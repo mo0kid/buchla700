@@ -211,11 +211,18 @@ static void fpu_write_func(uint32_t off, uint32_t val)
 		break;
 
 	case FR_SF1:
+		/* scale factors not yet used */
+		break;
+
 	case FR_CV2:
+		fn->cv2 = sval;
+		ver2("fpu cv2 v%d f%d %d", voice, func, (int)sval);
+		break;
+
 	case FR_SF2:
 	case FR_CV3:
 	case FR_SF3:
-		/* CV2/CV3 and scale factors — not yet used */
+		/* CV3 and remaining scale factors — not yet used */
 		break;
 
 	default:

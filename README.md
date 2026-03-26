@@ -178,23 +178,20 @@ The iPad controller sends and receives messages on configurable UDP ports (defau
 
 ### Prerequisites (all platforms)
 
-The emulator links against static libraries. You need to build or install the following into `/opt/sdl2` and `/opt/rtmidi` (or adjust paths in the Makefile):
-
 - [SDL2](https://www.libsdl.org/) (core)
-- [SDL2_net](https://github.com/libsdl-org/SDL_net) (networking)
+- [SDL2_net](https://github.com/libsdl-org/SDL_net) (networking / OSC)
 - [SDL2_ttf](https://github.com/libsdl-org/SDL_ttf) (font rendering)
 - [FreeType](https://freetype.org/) (used by SDL2_ttf)
+- [HarfBuzz](https://harfbuzz.github.io/) (used by SDL2_ttf)
 - [RtMidi](https://www.music.mcgill.ca/~gary/rtmidi/) (MIDI I/O)
+
+The Makefile supports two modes: **Homebrew dynamic linking** (simplest) or **custom static builds** at `/opt/sdl2` and `/opt/rtmidi` (for self-contained binaries). If `/opt/sdl2/lib/libSDL2.a` exists, static linking is used automatically; otherwise it falls back to Homebrew.
 
 ### macOS
 
 ```sh
-# Install dependencies via Homebrew (used as fallback paths)
-brew install sdl2 sdl2_net sdl2_ttf freetype rtmidi
-
-# Build static libs into /opt/sdl2 and /opt/rtmidi, or adjust Makefile paths.
-# The Makefile automatically falls back to /opt/homebrew/lib/ for
-# SDL2_net, freetype, and rtmidi if they are not found in /opt/sdl2.
+# Install dependencies via Homebrew (Intel or Apple Silicon)
+brew install sdl2 sdl2_net sdl2_ttf freetype harfbuzz rtmidi
 
 cd buchla-emu
 make

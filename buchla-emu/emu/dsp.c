@@ -794,11 +794,14 @@ static const fm_route_fn fm_routes[12] = {
  * envelopes but eliminates int16_t quantization staircase.
  */
 
-#define SMOOTH_COEFF 0.05
+#define SMOOTH_COEFF     0.05
+#define CV2_SMOOTH_COEFF 0.003  /* ~7ms at 48kHz — interpolates between fader messages */
 
 static inline double smooth_val(dsp_func_t *fn)
 {
-	double target = (double)fn->current + (double)fn->cv1;
+	fn->cv2_smooth += ((double)fn->cv2 - fn->cv2_smooth) * CV2_SMOOTH_COEFF;
+	double target = (double)fn->current + (double)fn->cv1 + fn->cv2_smooth;
+
 	double coeff = SMOOTH_COEFF;
 
 	if (fpu_time_scale > 0.01) {

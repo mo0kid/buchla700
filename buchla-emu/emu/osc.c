@@ -126,12 +126,18 @@ static char prev_row7[96];
 static float prev_bars[14];
 static bool bar_centered[14];
 static int32_t fader_index_offset = 0;
-static float fader_hold[14] = {
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-};
+static int32_t fader_write_tick[14];  /* lcd_poll_tick when fader was last written */
+static int32_t lcd_poll_tick;
+#define FADER_GRACE_TICKS 5    /* ~500ms grace period at 100ms poll rate */
+#define FADER_SMOOTH      0.03f /* at 500Hz: ~66ms glide between fader messages */
+static float fader_sm_cur[14];     /* current smoothed float value */
+static float fader_sm_tgt[14];     /* target from last OSC message */
+static bool  fader_sm_run[14];     /* smoothing active */
 static void osc_poll_lcd(void);
 static void osc_dump_all_rows(void);
 static void fader_write_fpu(int32_t fader_idx, float value);
+static void fader_clear_cv2(int32_t fader_idx);
+static void fader_clear_all_cv2(void);
 
 static bool xy_active = false;
 
@@ -210,12 +216,18 @@ static void osc_smooth_tick(void)
 		sm_prs_dirty = false;
 	}
 
-	/* re-apply fader holds so new notes don't revert to envelope values */
+	/* smooth fader values at 500Hz so the FPU receives a continuous
+	 * stream instead of discrete jumps from 30-60Hz OSC messages */
 
 	if (fader_index_offset == 0) {
 		for (int32_t i = 0; i < 14; ++i) {
-			if (fader_hold[i] >= 0.0f) {
-				fader_write_fpu(i, fader_hold[i]);
+			if (!fader_sm_run[i]) continue;
+
+			float diff = fader_sm_tgt[i] - fader_sm_cur[i];
+
+			if (diff > 0.0001f || diff < -0.0001f) {
+				fader_sm_cur[i] += FADER_SMOOTH * diff;
+				fader_write_fpu(i, fader_sm_cur[i]);
 			}
 		}
 	}
@@ -483,26 +495,55 @@ static const bool fader_is_offset[14] = {
 static void fader_write_fpu(int32_t fader_idx, float value)
 {
 	int32_t func = fader_to_func[fader_idx];
-	int16_t ival;
 
-	if (fader_is_offset[fader_idx]) {
-		/* offset: 0.5 = 0, range ±32000 */
-		ival = (int16_t)((value - 0.5f) * 64000.0f);
-	}
-	else {
-		/* gain: 0.0 = 0, range 0..32000 */
-		ival = (int16_t)(value * 32000.0f);
+	/* per-parameter scaling matching firmware sendart() */
+	int16_t cv2_val;
+
+	switch (func) {
+	case FN_FREQ1: case FN_FREQ2: case FN_FREQ3: case FN_FREQ4:
+		/* center=0 pitch offset, ±2000 half-cents */
+		cv2_val = (int16_t)((value - 0.5f) * 4000.0f);
+		break;
+
+	case FN_FILTER:
+		/* center=0, ±16000 range */
+		cv2_val = (int16_t)((value - 0.5f) * 32000.0f);
+		break;
+
+	case FN_LOCN:
+		/* center=0, ±16000 range */
+		cv2_val = (int16_t)((value - 0.5f) * 32000.0f);
+		break;
+
+	default:
+		/* level, reson, index: 0=no boost, 32000=max boost */
+		cv2_val = (int16_t)(value * 32000.0f);
+		break;
 	}
 
-	/* write to all 12 voices via FPU_FSEND (immediate, no interpolation) */
+	/* write to CV2 for all voices — additive on top of envelope */
+	for (int32_t v = 0; v < DSP_VOICES; ++v) {
+		uint32_t base = 0x4000 + (uint32_t)(v * 512 + func * 32);
+		fpu_write(base + FR_CV2, 2, (uint32_t)(uint16_t)cv2_val);
+	}
+}
+
+static void fader_clear_cv2(int32_t fader_idx)
+{
+	int32_t func = fader_to_func[fader_idx];
 
 	for (int32_t v = 0; v < DSP_VOICES; ++v) {
 		uint32_t base = 0x4000 + (uint32_t)(v * 512 + func * 32);
+		fpu_write(base + FR_CV2, 2, 0);
+	}
+	fader_sm_run[fader_idx] = false;
+}
 
-		fpu_write(base + FR_MNT,   2, 0);  /* force immediate (no interpolation) */
-		fpu_write(base + FR_EXP,   2, 0);
-		fpu_write(base + FR_VAL10, 2, (uint32_t)(uint16_t)ival);
-		fpu_write(base + FR_CTL,   2, FPU_FSEND);
+static void fader_clear_all_cv2(void)
+{
+	for (int32_t i = 0; i < 14; ++i) {
+		fader_clear_cv2(i);
+		fader_write_tick[i] = 0;
 	}
 }
 
@@ -530,11 +571,16 @@ static void handle_fader(const uint8_t *data, int32_t len, int32_t pos,
 		return;
 	}
 
-	/* write directly to FPU only on PRMTR page (offset 0) */
+	/* buffer for smoothing — osc_smooth_tick writes to FPU at 500Hz */
 
 	if (fader_index_offset == 0) {
-		fader_write_fpu(base, value);
-		fader_hold[base] = value;
+		if (!fader_sm_run[base]) {
+			fader_sm_cur[base] = value;
+			fader_write_fpu(base, value);
+		}
+		fader_sm_tgt[base] = value;
+		fader_sm_run[base] = true;
+		fader_write_tick[base] = lcd_poll_tick;
 	}
 
 	/* throttle kbd scanner updates to avoid buffer clog —
@@ -680,6 +726,7 @@ static void handle_connect(const UDPpacket *pkt)
 
 static void handle_disconnect(void)
 {
+	fader_clear_all_cv2();
 	connected = false;
 	xy_active = false;
 	inf("osc: companion disconnected");
@@ -994,9 +1041,10 @@ static void osc_poll_lcd(void)
 
 		osc_send_centered();
 
+		fader_clear_all_cv2();
+
 		for (int32_t i = 0; i < 14; ++i) {
 			prev_bars[i] = -1.0f;
-			fader_hold[i] = -1.0f;
 		}
 		text_changed = true;
 	}
@@ -1014,6 +1062,8 @@ static void osc_poll_lcd(void)
 	if (text_changed)
 		return; /* let firmware redraw bars before reading */
 
+	++lcd_poll_tick;
+
 	/* bar graphs: fader positions from graphics memory */
 	float bars[14];
 	lcd_get_bars(bars, 14, bar_centered);
@@ -1024,6 +1074,14 @@ static void osc_poll_lcd(void)
 		if (diff > 0.01f || diff < -0.01f) {
 			osc_send_fader(i, bars[i]);
 			prev_bars[i] = bars[i];
+
+			/* bar changed without recent fader input → firmware
+			 * updated this parameter (init, patch load, etc.)
+			 * so clear the CV2 override for this fader */
+			if (fader_index_offset == 0 &&
+			    lcd_poll_tick - fader_write_tick[i] > FADER_GRACE_TICKS) {
+				fader_clear_cv2(i);
+			}
 		}
 	}
 }

@@ -101,9 +101,11 @@ typedef struct {
 	/* control voltage modulation (written by patch system via FPU CV1) */
 
 	int16_t  cv1;
+	int16_t  cv2;
 
-	/* DSP-side smoothed value (updated at audio rate) */
+	/* DSP-side smoothed values (updated at audio rate) */
 
+	double   cv2_smooth;
 	double   dsp_smooth;
 } dsp_func_t;
 
