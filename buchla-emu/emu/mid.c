@@ -165,6 +165,7 @@ static void callback(double time, const uint8_t *midi, size_t midi_sz, void *dat
 		ver2("midi[%d] 0x%02x", i, midi[i]);
 		out(0, midi[i]);
 	}
+
 }
 
 void mid_init(void)
@@ -172,11 +173,17 @@ void mid_init(void)
 	ver("mid init");
 
 	mid_in = rtmidi_in_create_default();
-	mid_in->data = NULL; // XXX - remove initialization once it's added to RtMidi
 
-	if (!mid_in->ok) {
-		fail("rtmidi_in_create_default() failed: %s", mid_in->msg);
+	if (mid_in == NULL || !mid_in->ok) {
+		inf("MIDI not available — continuing without MIDI");
+		if (mid_in != NULL) {
+			rtmidi_in_free(mid_in);
+		}
+		mid_in = NULL;
+		return;
 	}
+
+	mid_in->data = NULL; // XXX - remove initialization once it's added to RtMidi
 
 	uint32_t n_ports = rtmidi_get_port_count(mid_in);
 

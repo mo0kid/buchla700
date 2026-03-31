@@ -182,7 +182,64 @@ void vid_sdl(void)
 
 	last = now;
 
-	/* render objects to scene render target */
+#if defined(EMU_RPI)
+	/* RPi: render directly to screen (no render targets — VC4 GLES
+	   doesn't support glFramebufferTexture2D) */
+
+	if (SDL_RenderClear(ren) < 0) {
+		fail("SDL_RenderClear() failed: %s", SDL_GetError());
+	}
+
+	if (SDL_LockMutex(cpu_mutex) < 0) {
+		fail("SDL_LockMutex() failed: %s", SDL_GetError());
+	}
+
+	for (int32_t i = 0; i < n_objs; ++i) {
+		obj_t *obj = objs + i;
+
+		pal[0] = obj->tran ? pal[0] & 0xffffff00 : pal[0] | 0x000000ff;
+		uint16_t *m = obj->mem;
+
+		for (int32_t k = 0; k < obj->n_vers; ++k) {
+			SDL_Rect src = {
+				.x = 0, .y = 0, .w = obj->w, .h = obj->vers[k].h
+			};
+
+			void *buf;
+			int32_t pitch;
+
+			if (SDL_LockTexture(tex, &src, &buf, &pitch) < 0) {
+				fail("SDL_LockTexture() failed: %s", SDL_GetError());
+			}
+
+			if (obj->fon_h < 0) {
+				m = rend_bm(m, obj->w, obj->vers[k].h, buf, pitch);
+			}
+			else {
+				m = rend_tx(m, obj->w, obj->vers[k].h, obj->fon_h, buf, pitch);
+			}
+
+			SDL_UnlockTexture(tex);
+
+			SDL_Rect dst = {
+				.x = SCALE(obj->x), .y = SCALE(obj->vers[k].y),
+				.w = SCALE(obj->w), .h = SCALE(obj->vers[k].h)
+			};
+
+			if (SDL_RenderCopy(ren, tex, &src, &dst) < 0) {
+				fail("SDL_RenderCopy() failed: %s", SDL_GetError());
+			}
+		}
+	}
+
+	if (SDL_UnlockMutex(cpu_mutex) < 0) {
+		fail("SDL_UnlockMutex() failed: %s", SDL_GetError());
+	}
+
+	SDL_RenderPresent(ren);
+
+#else
+	/* Desktop: render to texture targets for CRT glow effect */
 
 	if (SDL_SetRenderTarget(ren, scene_rt) < 0) {
 		fail("SDL_SetRenderTarget() failed: %s", SDL_GetError());
@@ -291,14 +348,20 @@ void vid_sdl(void)
 	}
 
 	SDL_RenderPresent(ren);
+#endif
 }
 
 void vid_init(void)
 {
 	ver("vid init");
 
+#if defined(EMU_RPI)
+	win = SDL_CreateWindow("Screen", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+			0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP);
+#else
 	win = SDL_CreateWindow("Screen", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 			WIN_W, WIN_H, 0);
+#endif
 
 	if (win == NULL) {
 		fail("SDL_CreateWindow() failed: %s", SDL_GetError());
@@ -310,7 +373,12 @@ void vid_init(void)
 		fail("SDL_GetWindowID() failed: %s", SDL_GetError());
 	}
 
+#if defined(EMU_RPI)
+	SDL_ShowCursor(SDL_DISABLE);
+	ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC);
+#else
 	ren = SDL_CreateRenderer(win, -1, 0);
+#endif
 
 	if (ren == NULL) {
 		fail("SDL_CreateRenderer() failed: %s", SDL_GetError());
@@ -335,6 +403,7 @@ void vid_init(void)
 		fail("SDL_SetTextureBlendMode() failed: %s", SDL_GetError());
 	}
 
+#if !defined(EMU_RPI)
 	/* render targets with linear filtering for phosphor glow */
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
@@ -354,7 +423,9 @@ void vid_init(void)
 	}
 
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+#endif
 
+#if !defined(EMU_RPI)
 	crt_tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC,
 			WIN_W, WIN_H);
 
@@ -378,6 +449,7 @@ void vid_init(void)
 
 	SDL_UpdateTexture(crt_tex, NULL, crt_pix, WIN_W * (int32_t)sizeof (uint32_t));
 	free(crt_pix);
+#endif
 
 	SDL_AtomicSet(&frame, 1);
 }

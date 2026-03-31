@@ -191,6 +191,7 @@ extern void snd_write(uint32_t off, int32_t sz, uint32_t val);
 
 extern void dsp_init(void);
 extern void dsp_render(float *buf, int32_t frames);
+
 extern void eq_set_band(int32_t band, int32_t channel, double gain_db);
 
 extern void led_init(void);

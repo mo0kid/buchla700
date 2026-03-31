@@ -15,6 +15,14 @@ RTMIDI :=		/opt/rtmidi-win
 EXT :=			.exe
 endif
 
+ifdef RPI
+GCC :=			aarch64-linux-gnu-gcc
+GPP :=			aarch64-linux-gnu-g++
+SDL2 :=			$(or $(RPI_SDL2),/opt/sdl2-rpi)
+RTMIDI :=		$(or $(RPI_RTMIDI),/opt/rtmidi-rpi)
+EXT :=
+endif
+
 SDL2_INC :=		$(SDL2)/include
 SDL2_LIB :=		$(SDL2)/lib
 
@@ -36,9 +44,17 @@ FLAGS_AUX :=	$(FLAGS) -Wall -Wextra \
 				-Wpedantic -Wconversion -Wsign-conversion -Wshadow \
 				-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls
 
+ifdef RPI
+FLAGS_EMU +=	-D EMU_LINUX -D EMU_RPI -D _GNU_SOURCE -ffast-math -finline-functions
+FLAGS_LNK :=	$(FLAGS) -pthread -Wall -Wextra
+LIBS :=			-L$(SDL2_LIB) -lSDL2 -lSDL2_net -lSDL2_ttf \
+				-lfreetype -lharfbuzz \
+				-L$(RTMIDI_LIB) -lrtmidi \
+				-ldl -lm -lasound -lpthread
+else
 ifndef WIN
 ifeq ($(OS), Linux)
-FLAGS_EMU +=	-D EMU_LINUX
+FLAGS_EMU +=	-D EMU_LINUX -D _GNU_SOURCE
 FLAGS_LNK :=	$(FLAGS) -pthread -Wall -Wextra
 LIBS :=			$(SDL2_LIB)/libSDL2.a \
 				$(SDL2_LIB)/libSDL2_net.a \
@@ -98,10 +114,15 @@ LIBS :=			-l mingw32 \
 				-l winmm \
 				-l ws2_32
 endif
+endif
 
 HEADERS :=		$(wildcard cpu/*.h) $(wildcard emu/*.h)
 
+ifdef RPI
+all:			buchla
+else
 all:			buchla$(EXT) buchla.disk
+endif
 
 build/gen:
 				gcc $(FLAGS) -o build/gen cpu/m68kmake.c
@@ -135,7 +156,9 @@ EMU_O :=		$(EMU_C:.c=.o)
 EMU_OP :=		$(EMU_O:%=build/%)
 
 ifeq ($(OS), Darwin)
+ifndef RPI
 EMU_OP +=		build/dlg.o
+endif
 endif
 
 build/%.o:		emu/%.c $(HEADERS)

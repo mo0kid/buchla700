@@ -118,14 +118,41 @@ static void eq_psg_write(uint8_t val)
 
 static SDL_AudioDeviceID audio_dev;
 
+static int audio_is_s16 = 0;
+static float *render_buf = NULL;
+static int render_buf_frames = 0;
+
 static void audio_callback(void *userdata, Uint8 *stream, int len)
 {
 	(void)userdata;
 
-	float *buf = (float *)stream;
-	int32_t frames = len / (int)(sizeof(float) * 2); /* stereo */
+	if (audio_is_s16) {
+		int16_t *out = (int16_t *)stream;
+		int32_t frames = len / (int)(sizeof(int16_t) * 2); /* stereo */
 
-	dsp_render(buf, frames);
+		/* grow temp buffer if needed */
+		if (frames > render_buf_frames) {
+			free(render_buf);
+			render_buf = (float *)malloc((size_t)frames * sizeof(float) * 2);
+			render_buf_frames = frames;
+		}
+
+		dsp_render(render_buf, frames);
+
+		/* float [-1,1] → S16 */
+		for (int32_t i = 0; i < frames * 2; i++) {
+			float s = render_buf[i];
+			if (s > 1.0f) s = 1.0f;
+			if (s < -1.0f) s = -1.0f;
+			out[i] = (int16_t)(s * 32767.0f);
+		}
+	}
+	else {
+		float *buf = (float *)stream;
+		int32_t frames = len / (int)(sizeof(float) * 2); /* stereo */
+		dsp_render(buf, frames);
+	}
+
 }
 
 void snd_init(void)
@@ -137,20 +164,31 @@ void snd_init(void)
 
 	SDL_memset(&want, 0, sizeof want);
 	want.freq = DSP_SAMPLE_RATE;
-	want.format = AUDIO_F32SYS;
 	want.channels = 2;
-	want.samples = 512;
 	want.callback = audio_callback;
 
-	audio_dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+#if defined(EMU_RPI)
+	want.samples = 1024;
+	want.format = AUDIO_S16SYS;
+#else
+	want.samples = 512;
+	want.format = AUDIO_F32SYS;
+#endif
+
+	audio_dev = SDL_OpenAudioDevice(NULL, 0, &want, &have,
+			SDL_AUDIO_ALLOW_FORMAT_CHANGE);
 
 	if (audio_dev == 0) {
 		err("SDL_OpenAudioDevice() failed: %s", SDL_GetError());
 		return;
 	}
 
-	inf("audio: %d Hz, %d ch, %d samples, fmt 0x%04x",
-			have.freq, have.channels, have.samples, have.format);
+	audio_is_s16 = (have.format == AUDIO_S16SYS || have.format == AUDIO_S16LSB
+			|| have.format == AUDIO_S16MSB);
+
+	inf("audio: %d Hz, %d ch, %d samples, fmt 0x%04x%s",
+			have.freq, have.channels, have.samples, have.format,
+			audio_is_s16 ? " (S16)" : " (F32)");
 
 	g_dsp.sample_rate = (double)have.freq;
 

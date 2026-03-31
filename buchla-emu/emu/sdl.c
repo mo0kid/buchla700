@@ -26,7 +26,11 @@ int32_t sdl_verbose = 0;
 typedef void (*sdl_func_t)(void);
 
 static sdl_func_t sdl_funcs[] = {
+#if defined(EMU_RPI)
+	vid_sdl
+#else
 	lcd_sdl, ser_sdl, vid_sdl
+#endif
 };
 
 void sdl_init(void)
@@ -65,8 +69,17 @@ void sdl_loop(void)
 	SDL_Scancode down = SDL_SCANCODE_UNKNOWN;
 #endif
 
+#if defined(EMU_RPI)
+	bool rel_mod = true;
+	ser_mou_res();
+#else
 	bool rel_mod = false;
+#endif
+#if defined(EMU_RPI)
+	uint32_t win = vid_win;  /* KMS has no focus events — always target vid */
+#else
 	uint32_t win = 0;
+#endif
 	int32_t boot_tick = autoboot ? 0 : -1;
 
 	while (SDL_AtomicGet(&run) != 0) {
@@ -147,6 +160,7 @@ void sdl_loop(void)
 				continue;
 			}
 
+#if !defined(EMU_RPI)
 			if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_F5) {
 #if defined EMU_OS_X
 				char *path = dlg_open_disk();
@@ -174,6 +188,7 @@ void sdl_loop(void)
 #endif
 				continue;
 			}
+#endif
 
 			if (ev.type == SDL_WINDOWEVENT) {
 				if (ev.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {

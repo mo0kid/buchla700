@@ -28,6 +28,7 @@ int32_t cpu_verbose = 0;
 #define CPU_FREQ 7000000
 #define PER_SEC 100000
 
+
 #define APP_START 0x10000
 
 #define RAM_START 0x0

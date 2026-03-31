@@ -505,6 +505,11 @@ void ser_init(void)
 {
 	ver("ser init");
 
+#if defined(EMU_RPI)
+	/* RPi: skip serial console window — only CRT via KMS/DRM */
+	return;
+#endif
+
 	win = SDL_CreateWindow("Serial Console", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 			WIN_W, WIN_H, 0);
 

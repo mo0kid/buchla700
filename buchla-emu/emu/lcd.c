@@ -294,6 +294,14 @@ void lcd_init(void)
 {
 	ver("lcd init");
 
+#if defined(EMU_RPI)
+	/* RPi: skip LCD window — only one fullscreen display via KMS/DRM */
+	for (int32_t i = 0; i < TXT_W * TXT_H; ++i) {
+		mem_txt[i] = ' ';
+	}
+	return;
+#endif
+
 	win = SDL_CreateWindow("LCD", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 			WIN_W, WIN_H, 0);
 

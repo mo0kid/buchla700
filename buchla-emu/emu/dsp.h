@@ -19,6 +19,45 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <math.h>
+
+/* Precision selection: single-precision float on RPi (ARM Cortex-A53),
+ * double-precision on macOS/desktop.  All DSP computation uses dsp_real
+ * and the dsp_xxx math wrappers so a single code path serves both. */
+
+#if defined(EMU_RPI)
+typedef float dsp_real;
+#define dsp_sin   sinf
+#define dsp_cos   cosf
+#define dsp_fmax  fmaxf
+#define dsp_fmin  fminf
+#define dsp_fabs  fabsf
+#define dsp_pow   powf
+#define dsp_exp   expf
+#define dsp_log   logf
+#define dsp_tan   tanf
+#define dsp_sqrt  sqrtf
+#define dsp_asin  asinf
+#define dsp_tanh  tanhf
+#define DSP_PI    3.14159265f
+#define DSP_TWO_PI 6.28318530f
+#else
+typedef double dsp_real;
+#define dsp_sin   sin
+#define dsp_cos   cos
+#define dsp_fmax  fmax
+#define dsp_fmin  fmin
+#define dsp_fabs  fabs
+#define dsp_pow   pow
+#define dsp_exp   exp
+#define dsp_log   log
+#define dsp_tan   tan
+#define dsp_sqrt  sqrt
+#define dsp_asin  asin
+#define dsp_tanh  tanh
+#define DSP_PI    M_PI
+#define DSP_TWO_PI (2.0 * M_PI)
+#endif
 
 #define DSP_VOICES      12
 #define DSP_FUNCS       16
@@ -83,10 +122,10 @@
 /* Per-function interpolator state */
 
 typedef struct {
-	double   current_d;     /* accumulated value (double precision) */
+	dsp_real current_d;     /* accumulated value */
 	int16_t  current;       /* quantized current value */
 	int16_t  target;        /* interpolation target */
-	double   increment;     /* per-step increment */
+	dsp_real increment;     /* per-step increment */
 	int32_t  remaining;     /* interpolation steps remaining */
 	bool     active;        /* interpolation in progress */
 	bool     int_enable;    /* generate interrupt on completion */
@@ -105,37 +144,37 @@ typedef struct {
 
 	/* DSP-side smoothed values (updated at audio rate) */
 
-	double   cv2_smooth;
-	double   dsp_smooth;
+	dsp_real cv2_smooth;
+	dsp_real dsp_smooth;
 } dsp_func_t;
 
 /* Per-oscillator state */
 
 typedef struct {
-	double phase;
-	double phase_inc;
+	dsp_real phase;
+	dsp_real phase_inc;
 } dsp_osc_t;
 
 /* 4-pole OTA ladder filter (analog-modeled) */
 
 typedef struct {
-	double s[4];       /* integrator states */
-	double feedback;   /* delayed feedback sample */
+	dsp_real s[4];       /* integrator states */
+	dsp_real feedback;   /* delayed feedback sample */
 } dsp_filter_t;
 
 /* DC blocking high-pass filter */
 
 typedef struct {
-	double prev_in;
-	double prev_out;
+	dsp_real prev_in;
+	dsp_real prev_out;
 } dsp_dcblock_t;
 
 /* Biquad filter (used for all-pass and high-pass) */
 
 typedef struct {
-	double b0, b1, b2;
-	double a1, a2;
-	double z1, z2;          /* state (direct form II transposed) */
+	dsp_real b0, b1, b2;
+	dsp_real a1, a2;
+	dsp_real z1, z2;          /* state (direct form II transposed) */
 } dsp_biquad_t;
 
 /* Phase shifter (global stereo effect) */
@@ -147,8 +186,8 @@ typedef struct {
 	dsp_biquad_t ap_r[PS_ALLPASS_STAGES];  /* right all-pass chain */
 	dsp_biquad_t hp_l;                      /* left high-pass (200 Hz) */
 	dsp_biquad_t hp_r;                      /* right high-pass (200 Hz) */
-	double       lfo_phase;
-	double       lfo_inc;
+	dsp_real     lfo_phase;
+	dsp_real     lfo_inc;
 	int32_t      update_counter;            /* coefficient update decimation */
 } dsp_pshift_t;
 
@@ -159,7 +198,7 @@ typedef struct {
 
 typedef struct {
 	dsp_biquad_t filters[EQ_BANDS][EQ_CHANNELS];
-	double       gain_db[EQ_BANDS][EQ_CHANNELS];  /* ±12 dB per band */
+	dsp_real     gain_db[EQ_BANDS][EQ_CHANNELS];  /* ±12 dB per band */
 	bool         dirty;                             /* coefficients need update */
 } dsp_eq_t;
 
@@ -184,7 +223,7 @@ typedef struct {
 	int16_t      wsb[DSP_WS_COUNT];    /* waveshape B */
 	int32_t      config;               /* FM routing config 0-11 */
 	bool         osc_sync[DSP_OSCS];   /* oscillator sync flags */
-	double       ramp;                 /* anti-click ramp 0..1 */
+	dsp_real     ramp;                 /* anti-click ramp 0..1 */
 	bool         was_active;           /* was producing sound last sample */
 } dsp_voice_t;
 
@@ -205,9 +244,9 @@ typedef struct {
 	dsp_pshift_t   pshift;
 	dsp_eq_t       eq;
 	dsp_exciter_t  exciter;
-	double         sample_rate;
-	double         ht_value;       /* horizontal touch: -1..+1 pitch bend */
-	double         vt_value;       /* vertical touch: 0..1 mod depth */
+	dsp_real       sample_rate;
+	dsp_real       ht_value;       /* horizontal touch: -1..+1 pitch bend */
+	dsp_real       vt_value;       /* vertical touch: 0..1 mod depth */
 	dsp_irq_fifo_t irq_fifo;
 } dsp_state_t;
 

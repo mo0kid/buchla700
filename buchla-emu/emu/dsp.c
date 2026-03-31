@@ -20,7 +20,7 @@
 #include <math.h>
 #include <string.h>
 
-#define TWO_PI (2.0 * M_PI)
+#define TWO_PI DSP_TWO_PI
 
 dsp_state_t g_dsp;
 bool dsp_test_tone = false;
@@ -34,29 +34,29 @@ bool dsp_test_tone = false;
  * MIDI note 0 (C-1) = 8.1758 Hz.  Each half-cent = 1/2400 octave.
  */
 
-static double pitch_to_hz(int16_t pitch)
+static dsp_real pitch_to_hz(int16_t pitch)
 {
 	if (pitch <= 0) {
 		return 8.1758;
 	}
 
-	return 8.1758 * pow(2.0, (double)pitch / 2400.0);
+	return 8.1758 * dsp_pow(2.0, (dsp_real)pitch / 2400.0);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Waveshaper lookup with linear interpolation                                */
 /* -------------------------------------------------------------------------- */
 
-static double waveshaper_lookup(double input, const int16_t *table, int32_t count)
+static dsp_real waveshaper_lookup(dsp_real input, const int16_t *table, int32_t count)
 {
 	if (count < 2) {
 		return input;
 	}
 
-	double clamped = fmax(-1.0, fmin(1.0, input));
-	double idx = (clamped + 1.0) * 0.5 * (double)(count - 1);
+	dsp_real clamped = dsp_fmax(-1.0, dsp_fmin(1.0, input));
+	dsp_real idx = (clamped + 1.0) * 0.5 * (dsp_real)(count - 1);
 	int32_t i = (int32_t)idx;
-	double frac = idx - (double)i;
+	dsp_real frac = idx - (dsp_real)i;
 
 	if (i < 0) {
 		i = 0;
@@ -66,8 +66,8 @@ static double waveshaper_lookup(double input, const int16_t *table, int32_t coun
 		i = count - 2;
 	}
 
-	double a = (double)table[i] / 32000.0;
-	double b = (double)table[i + 1] / 32000.0;
+	dsp_real a = (dsp_real)table[i] / 32000.0;
+	dsp_real b = (dsp_real)table[i + 1] / 32000.0;
 
 	return a + frac * (b - a);
 }
@@ -88,44 +88,44 @@ static double waveshaper_lookup(double input, const int16_t *table, int32_t coun
 #define VT  (1.22)     /* ~1.2 gives a warm but not overly fuzzy character */
 #define VT_INV (1.0 / VT)
 
-static inline double ota_tanh(double x)
+static inline dsp_real ota_tanh(dsp_real x)
 {
 	/* fast tanh approximation: accurate to ~0.1% for |x| < 4 */
-	double x2 = x * x;
+	dsp_real x2 = x * x;
 	return x * (27.0 + x2) / (27.0 + 9.0 * x2);
 }
 
-static double filter_process_full(dsp_filter_t *f, double input,
-		double cutoff_hz, double resonance, double sr)
+static dsp_real filter_process_full(dsp_filter_t *f, dsp_real input,
+		dsp_real cutoff_hz, dsp_real resonance, dsp_real sr)
 {
-	double fc = fmax(20.0, fmin(sr * 0.49, cutoff_hz));
-	double r = fmax(0.0, fmin(0.95, resonance));
+	dsp_real fc = dsp_fmax(20.0, dsp_fmin(sr * 0.49, cutoff_hz));
+	dsp_real r = dsp_fmax(0.0, dsp_fmin(0.95, resonance));
 
 	/* integrator coefficient via bilinear pre-warp */
-	double g = tan(M_PI * fc / sr);
-	double G = g / (1.0 + g);
+	dsp_real g = dsp_tan(DSP_PI * fc / sr);
+	dsp_real G = g / (1.0 + g);
 
 	/* feedback gain: 4.0 is the theoretical self-oscillation threshold
 	 * for a 4-pole ladder.  The tanh saturation in the feedback path
 	 * provides natural limiting so we can safely approach it. */
-	double k = r * 4.0;
+	dsp_real k = r * 4.0;
 
 	/* estimate output for zero-delay feedback using previous states */
-	double S = (G * G * G * f->s[0] +
+	dsp_real S = (G * G * G * f->s[0] +
 		    G * G * f->s[1] +
 		    G * f->s[2] +
 		    f->s[3]);
 
-	double S_scale = G * G * G * G;
-	double u = (input - k * ota_tanh(f->feedback * VT_INV) * VT) /
+	dsp_real S_scale = G * G * G * G;
+	dsp_real u = (input - k * ota_tanh(f->feedback * VT_INV) * VT) /
 		   (1.0 + k * S_scale);
 
 	/* cascade of 4 OTA stages with tanh saturation */
-	double x = ota_tanh(u * VT_INV) * VT;
+	dsp_real x = ota_tanh(u * VT_INV) * VT;
 
 	for (int32_t i = 0; i < 4; ++i) {
-		double v = G * (x - f->s[i]);
-		double y = v + f->s[i];
+		dsp_real v = G * (x - f->s[i]);
+		dsp_real y = v + f->s[i];
 		f->s[i] = y + v;
 		x = ota_tanh(y * VT_INV) * VT;
 	}
@@ -148,9 +148,9 @@ static double filter_process_full(dsp_filter_t *f, double input,
 /* DC blocker (1st-order high-pass, coeff 0.995)                              */
 /* -------------------------------------------------------------------------- */
 
-static double dcblock_process(dsp_dcblock_t *dc, double input)
+static dsp_real dcblock_process(dsp_dcblock_t *dc, dsp_real input)
 {
-	double out = input - dc->prev_in + 0.995 * dc->prev_out;
+	dsp_real out = input - dc->prev_in + 0.995 * dc->prev_out;
 
 	dc->prev_in = input;
 	dc->prev_out = out;
@@ -162,9 +162,9 @@ static double dcblock_process(dsp_dcblock_t *dc, double input)
 /* Biquad filter processing (direct form II transposed)                       */
 /* -------------------------------------------------------------------------- */
 
-static inline double biquad_process(dsp_biquad_t *f, double in)
+static inline dsp_real biquad_process(dsp_biquad_t *f, dsp_real in)
 {
-	double out = f->b0 * in + f->z1;
+	dsp_real out = f->b0 * in + f->z1;
 
 	f->z1 = f->b1 * in - f->a1 * out + f->z2;
 	f->z2 = f->b2 * in - f->a2 * out;
@@ -172,27 +172,27 @@ static inline double biquad_process(dsp_biquad_t *f, double in)
 	return out;
 }
 
-static void biquad_set_allpass(dsp_biquad_t *f, double freq, double q,
-		double sr)
+static void biquad_set_allpass(dsp_biquad_t *f, dsp_real freq, dsp_real q,
+		dsp_real sr)
 {
-	double w0 = TWO_PI * freq / sr;
-	double alpha = sin(w0) / (2.0 * q);
-	double a0 = 1.0 + alpha;
+	dsp_real w0 = TWO_PI * freq / sr;
+	dsp_real alpha = dsp_sin(w0) / (2.0 * q);
+	dsp_real a0 = 1.0 + alpha;
 
 	f->b0 = (1.0 - alpha) / a0;
-	f->b1 = -2.0 * cos(w0) / a0;
+	f->b1 = -2.0 * dsp_cos(w0) / a0;
 	f->b2 = 1.0;
 	f->a1 = f->b1;
 	f->a2 = f->b0;
 }
 
-static void biquad_set_highpass(dsp_biquad_t *f, double freq, double q,
-		double sr)
+static void biquad_set_highpass(dsp_biquad_t *f, dsp_real freq, dsp_real q,
+		dsp_real sr)
 {
-	double w0 = TWO_PI * freq / sr;
-	double alpha = sin(w0) / (2.0 * q);
-	double cosw0 = cos(w0);
-	double a0 = 1.0 + alpha;
+	dsp_real w0 = TWO_PI * freq / sr;
+	dsp_real alpha = dsp_sin(w0) / (2.0 * q);
+	dsp_real cosw0 = dsp_cos(w0);
+	dsp_real a0 = 1.0 + alpha;
 
 	f->b0 = (1.0 + cosw0) * 0.5 / a0;
 	f->b1 = -(1.0 + cosw0) / a0;
@@ -201,13 +201,13 @@ static void biquad_set_highpass(dsp_biquad_t *f, double freq, double q,
 	f->a2 = (1.0 - alpha) / a0;
 }
 
-static void biquad_set_lowpass(dsp_biquad_t *f, double freq, double q,
-		double sr)
+static void biquad_set_lowpass(dsp_biquad_t *f, dsp_real freq, dsp_real q,
+		dsp_real sr)
 {
-	double w0 = TWO_PI * freq / sr;
-	double alpha = sin(w0) / (2.0 * q);
-	double cosw0 = cos(w0);
-	double a0 = 1.0 + alpha;
+	dsp_real w0 = TWO_PI * freq / sr;
+	dsp_real alpha = dsp_sin(w0) / (2.0 * q);
+	dsp_real cosw0 = dsp_cos(w0);
+	dsp_real a0 = 1.0 + alpha;
 
 	f->b0 = (1.0 - cosw0) * 0.5 / a0;
 	f->b1 = (1.0 - cosw0) / a0;
@@ -216,15 +216,15 @@ static void biquad_set_lowpass(dsp_biquad_t *f, double freq, double q,
 	f->a2 = (1.0 - alpha) / a0;
 }
 
-static void biquad_set_lowshelf(dsp_biquad_t *f, double freq, double q,
-		double gain_db, double sr)
+static void biquad_set_lowshelf(dsp_biquad_t *f, dsp_real freq, dsp_real q,
+		dsp_real gain_db, dsp_real sr)
 {
-	double A = pow(10.0, gain_db / 40.0);
-	double w0 = TWO_PI * freq / sr;
-	double alpha = sin(w0) / (2.0 * q);
-	double cosw0 = cos(w0);
-	double sqA = 2.0 * sqrt(A) * alpha;
-	double a0 = (A + 1.0) + (A - 1.0) * cosw0 + sqA;
+	dsp_real A = dsp_pow(10.0, gain_db / 40.0);
+	dsp_real w0 = TWO_PI * freq / sr;
+	dsp_real alpha = dsp_sin(w0) / (2.0 * q);
+	dsp_real cosw0 = dsp_cos(w0);
+	dsp_real sqA = 2.0 * dsp_sqrt(A) * alpha;
+	dsp_real a0 = (A + 1.0) + (A - 1.0) * cosw0 + sqA;
 
 	f->b0 = A * ((A + 1.0) - (A - 1.0) * cosw0 + sqA) / a0;
 	f->b1 = 2.0 * A * ((A - 1.0) - (A + 1.0) * cosw0) / a0;
@@ -233,15 +233,15 @@ static void biquad_set_lowshelf(dsp_biquad_t *f, double freq, double q,
 	f->a2 = ((A + 1.0) + (A - 1.0) * cosw0 - sqA) / a0;
 }
 
-static void biquad_set_highshelf(dsp_biquad_t *f, double freq, double q,
-		double gain_db, double sr)
+static void biquad_set_highshelf(dsp_biquad_t *f, dsp_real freq, dsp_real q,
+		dsp_real gain_db, dsp_real sr)
 {
-	double A = pow(10.0, gain_db / 40.0);
-	double w0 = TWO_PI * freq / sr;
-	double alpha = sin(w0) / (2.0 * q);
-	double cosw0 = cos(w0);
-	double sqA = 2.0 * sqrt(A) * alpha;
-	double a0 = (A + 1.0) - (A - 1.0) * cosw0 + sqA;
+	dsp_real A = dsp_pow(10.0, gain_db / 40.0);
+	dsp_real w0 = TWO_PI * freq / sr;
+	dsp_real alpha = dsp_sin(w0) / (2.0 * q);
+	dsp_real cosw0 = dsp_cos(w0);
+	dsp_real sqA = 2.0 * dsp_sqrt(A) * alpha;
+	dsp_real a0 = (A + 1.0) - (A - 1.0) * cosw0 + sqA;
 
 	f->b0 = A * ((A + 1.0) + (A - 1.0) * cosw0 + sqA) / a0;
 	f->b1 = -2.0 * A * ((A - 1.0) + (A + 1.0) * cosw0) / a0;
@@ -250,14 +250,14 @@ static void biquad_set_highshelf(dsp_biquad_t *f, double freq, double q,
 	f->a2 = ((A + 1.0) - (A - 1.0) * cosw0 - sqA) / a0;
 }
 
-static void biquad_set_peaking(dsp_biquad_t *f, double freq, double q,
-		double gain_db, double sr)
+static void biquad_set_peaking(dsp_biquad_t *f, dsp_real freq, dsp_real q,
+		dsp_real gain_db, dsp_real sr)
 {
-	double A = pow(10.0, gain_db / 40.0);
-	double w0 = TWO_PI * freq / sr;
-	double alpha = sin(w0) / (2.0 * q);
-	double cosw0 = cos(w0);
-	double a0 = 1.0 + alpha / A;
+	dsp_real A = dsp_pow(10.0, gain_db / 40.0);
+	dsp_real w0 = TWO_PI * freq / sr;
+	dsp_real alpha = dsp_sin(w0) / (2.0 * q);
+	dsp_real cosw0 = dsp_cos(w0);
+	dsp_real a0 = 1.0 + alpha / A;
 
 	f->b0 = (1.0 + alpha * A) / a0;
 	f->b1 = -2.0 * cosw0 / a0;
@@ -285,7 +285,7 @@ static void biquad_reset(dsp_biquad_t *f)
 #define PS_MAX_RAW    31680.0
 #define PS_UPDATE_INT 256
 
-static void pshift_init(dsp_pshift_t *ps, double sr)
+static void pshift_init(dsp_pshift_t *ps, dsp_real sr)
 {
 	for (int32_t i = 0; i < PS_ALLPASS_STAGES; ++i) {
 		biquad_set_allpass(&ps->ap_l[i], 1000.0, 1.0, sr);
@@ -304,36 +304,36 @@ static void pshift_init(dsp_pshift_t *ps, double sr)
 	ps->update_counter = 0;
 }
 
-static void pshift_update_coeffs(dsp_pshift_t *ps, double intensity,
-		double sr)
+static void pshift_update_coeffs(dsp_pshift_t *ps, dsp_real intensity,
+		dsp_real sr)
 {
-	double exp_int = intensity * intensity;
-	double min_freq = 300.0;
-	double max_freq = 3500.0;
-	double base_l = min_freq + (1.0 - exp_int) * (max_freq - min_freq);
-	double base_r = base_l * 0.8;
-	double q = 0.9;
+	dsp_real exp_int = intensity * intensity;
+	dsp_real min_freq = 300.0;
+	dsp_real max_freq = 3500.0;
+	dsp_real base_l = min_freq + (1.0 - exp_int) * (max_freq - min_freq);
+	dsp_real base_r = base_l * 0.8;
+	dsp_real q = 0.9;
 
 	for (int32_t i = 0; i < PS_ALLPASS_STAGES; ++i) {
-		double ratio = (double)i / (double)(PS_ALLPASS_STAGES - 1);
+		dsp_real ratio = (dsp_real)i / (dsp_real)(PS_ALLPASS_STAGES - 1);
 
-		double lr = pow(0.5 + ratio * 0.5, 1.5);
-		double lf = fmax(250.0, fmin(6000.0, base_l * lr));
+		dsp_real lr = dsp_pow(0.5 + ratio * 0.5, 1.5);
+		dsp_real lf = dsp_fmax(250.0, dsp_fmin(6000.0, base_l * lr));
 
-		double rr = pow(1.0 - ratio * 0.4, 1.2);
-		double rf = fmax(250.0, fmin(6000.0, base_r * rr));
+		dsp_real rr = dsp_pow(1.0 - ratio * 0.4, 1.2);
+		dsp_real rf = dsp_fmax(250.0, dsp_fmin(6000.0, base_r * rr));
 
 		biquad_set_allpass(&ps->ap_l[i], lf, q, sr);
 		biquad_set_allpass(&ps->ap_r[i], rf, q, sr);
 	}
 }
 
-static double pshift_lfo(dsp_pshift_t *ps)
+static dsp_real pshift_lfo(dsp_pshift_t *ps)
 {
-	double s = sin(ps->lfo_phase);
-	double soft = s * (1.5 - 0.5 * s * s);
-	double tri = (2.0 / M_PI) * asin(sin(ps->lfo_phase));
-	double val = 0.7 * soft + 0.3 * tri;
+	dsp_real s = dsp_sin(ps->lfo_phase);
+	dsp_real soft = s * (1.5 - 0.5 * s * s);
+	dsp_real tri = (2.0 / DSP_PI) * dsp_asin(dsp_sin(ps->lfo_phase));
+	dsp_real val = 0.7 * soft + 0.3 * tri;
 
 	ps->lfo_phase += ps->lfo_inc;
 
@@ -344,8 +344,8 @@ static double pshift_lfo(dsp_pshift_t *ps)
 	return val;
 }
 
-static void pshift_process(dsp_pshift_t *ps, double *left, double *right,
-		double intensity, double rate_hz, double depth, double sr)
+static void pshift_process(dsp_pshift_t *ps, dsp_real *left, dsp_real *right,
+		dsp_real intensity, dsp_real rate_hz, dsp_real depth, dsp_real sr)
 {
 	if (intensity <= 0.001 && depth <= 0.001) {
 		return;
@@ -357,9 +357,9 @@ static void pshift_process(dsp_pshift_t *ps, double *left, double *right,
 
 	/* generate LFO and compute modulated intensity */
 
-	double lfo = pshift_lfo(ps);
-	double mod = lfo * depth * 0.3;
-	double mod_int = fmax(0.0, fmin(1.0, intensity + mod));
+	dsp_real lfo = pshift_lfo(ps);
+	dsp_real mod = lfo * depth * 0.3;
+	dsp_real mod_int = dsp_fmax(0.0, dsp_fmin(1.0, intensity + mod));
 
 	/* update filter coefficients periodically */
 
@@ -372,8 +372,8 @@ static void pshift_process(dsp_pshift_t *ps, double *left, double *right,
 
 	/* high-pass to remove low-end thumping */
 
-	double lf = biquad_process(&ps->hp_l, *left);
-	double rf = biquad_process(&ps->hp_r, *right);
+	dsp_real lf = biquad_process(&ps->hp_l, *left);
+	dsp_real rf = biquad_process(&ps->hp_r, *right);
 
 	/* cascaded all-pass chain */
 
@@ -395,14 +395,14 @@ static void pshift_process(dsp_pshift_t *ps, double *left, double *right,
 /* shelf).  ±12 dB per band, independent L/R.  Gains set via eq_set_band().   */
 /* -------------------------------------------------------------------------- */
 
-static const double eq_freqs[EQ_BANDS] = {
+static const dsp_real eq_freqs[EQ_BANDS] = {
 	50.0, 150.0, 400.0, 1000.0, 2500.0, 6000.0, 15000.0
 };
 
-static void eq_update_band(dsp_eq_t *eq, int32_t band, int32_t ch, double sr)
+static void eq_update_band(dsp_eq_t *eq, int32_t band, int32_t ch, dsp_real sr)
 {
-	double freq = eq_freqs[band];
-	double db = eq->gain_db[band][ch];
+	dsp_real freq = eq_freqs[band];
+	dsp_real db = eq->gain_db[band][ch];
 
 	if (band == 0) {
 		biquad_set_lowshelf(&eq->filters[band][ch], freq, 0.707, db, sr);
@@ -415,7 +415,7 @@ static void eq_update_band(dsp_eq_t *eq, int32_t band, int32_t ch, double sr)
 	}
 }
 
-static void eq_init(dsp_eq_t *eq, double sr)
+static void eq_init(dsp_eq_t *eq, dsp_real sr)
 {
 	for (int32_t b = 0; b < EQ_BANDS; ++b) {
 		for (int32_t c = 0; c < EQ_CHANNELS; ++c) {
@@ -435,11 +435,11 @@ void eq_set_band(int32_t band, int32_t channel, double gain_db)
 	}
 
 	gain_db = fmax(-12.0, fmin(12.0, gain_db));
-	g_dsp.eq.gain_db[band][channel] = gain_db;
+	g_dsp.eq.gain_db[band][channel] = (dsp_real)gain_db;
 	g_dsp.eq.dirty = true;
 }
 
-static void eq_process(dsp_eq_t *eq, double *left, double *right, double sr)
+static void eq_process(dsp_eq_t *eq, dsp_real *left, dsp_real *right, dsp_real sr)
 {
 	if (eq->dirty) {
 		for (int32_t b = 0; b < EQ_BANDS; ++b) {
@@ -451,7 +451,7 @@ static void eq_process(dsp_eq_t *eq, double *left, double *right, double sr)
 		eq->dirty = false;
 	}
 
-	double l = *left, r = *right;
+	dsp_real l = *left, r = *right;
 
 	for (int32_t b = 0; b < EQ_BANDS; ++b) {
 		l = biquad_process(&eq->filters[b][0], l);
@@ -469,7 +469,7 @@ static void eq_process(dsp_eq_t *eq, double *left, double *right, double sr)
 /* harmonics, applies soft clipping, mixes back with original.                */
 /* -------------------------------------------------------------------------- */
 
-static void exciter_init(dsp_exciter_t *ex, double sr)
+static void exciter_init(dsp_exciter_t *ex, dsp_real sr)
 {
 	biquad_set_highpass(&ex->hp_l, 1000.0, 0.707, sr);
 	biquad_set_highpass(&ex->hp_r, 1000.0, 0.707, sr);
@@ -486,46 +486,46 @@ static void exciter_init(dsp_exciter_t *ex, double sr)
 	biquad_reset(&ex->ap_r);
 }
 
-static inline double exciter_softclip(double x)
+static inline dsp_real exciter_softclip(dsp_real x)
 {
-	double threshold = 0.8;
+	dsp_real threshold = 0.8;
 
-	if (fabs(x) > threshold) {
-		double sign = x >= 0.0 ? 1.0 : -1.0;
-		double excess = fabs(x) - threshold;
-		return sign * (threshold + tanh(excess * 2.0) * 0.2);
+	if (dsp_fabs(x) > threshold) {
+		dsp_real sign = x >= 0.0 ? 1.0 : -1.0;
+		dsp_real excess = dsp_fabs(x) - threshold;
+		return sign * (threshold + dsp_tanh(excess * 2.0) * 0.2);
 	}
 
 	return x;
 }
 
-static inline double exciter_harmonics(double s)
+static inline dsp_real exciter_harmonics(dsp_real s)
 {
-	double sign = s >= 0.0 ? 1.0 : -1.0;
-	double h = s * s * sign * 2.0 + s * s * s * 0.5;
+	dsp_real sign = s >= 0.0 ? 1.0 : -1.0;
+	dsp_real h = s * s * sign * 2.0 + s * s * s * 0.5;
 
 	return exciter_softclip(h);
 }
 
-static void exciter_process(dsp_exciter_t *ex, double *left, double *right)
+static void exciter_process(dsp_exciter_t *ex, dsp_real *left, dsp_real *right)
 {
 	/* extract HF band */
 
-	double lhf = biquad_process(&ex->hp_l, *left);
+	dsp_real lhf = biquad_process(&ex->hp_l, *left);
 	lhf = biquad_process(&ex->lp_l, lhf);
 
-	double rhf = biquad_process(&ex->hp_r, *right);
+	dsp_real rhf = biquad_process(&ex->hp_r, *right);
 	rhf = biquad_process(&ex->lp_r, rhf);
 
 	/* generate harmonics */
 
-	double lh = exciter_harmonics(lhf);
-	double rh = exciter_harmonics(rhf);
+	dsp_real lh = exciter_harmonics(lhf);
+	dsp_real rh = exciter_harmonics(rhf);
 
 	/* combine: original + harmonics + brightness boost */
 
-	double le = *left + lh + *left * 0.3;
-	double re = *right + rh + *right * 0.3;
+	dsp_real le = *left + lh + *left * 0.3;
+	dsp_real re = *right + rh + *right * 0.3;
 
 	*left = exciter_softclip(le);
 	*right = exciter_softclip(re);
@@ -539,22 +539,22 @@ static void exciter_process(dsp_exciter_t *ex, double *left, double *right)
 /* idx[0..5] = index1..index6 normalised values.                              */
 /* -------------------------------------------------------------------------- */
 
-typedef void (*fm_route_fn)(dsp_osc_t osc[4], const double idx[6],
-		double *wsa, double *wsb);
+typedef void (*fm_route_fn)(dsp_osc_t osc[4], const dsp_real idx[6],
+		dsp_real *wsa, dsp_real *wsb);
 
 /* Config 00: Symmetric dual-path.
  * WSA: Osc2→Ind1→Osc1, mixed with Osc4×Ind2, scaled by Ind3.
  * WSB: Osc2→Ind4→Osc3, mixed with Osc4×Ind5, scaled by Ind6.
  * Osc2 and Osc4 each modulate both paths. */
 
-static void route00(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route00(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s1 = sin(o[1].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s1 = dsp_sin(o[1].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + s1 * x[0]);
-	double o2 = sin(o[2].phase + s1 * x[3]);
+	dsp_real o0 = dsp_sin(o[0].phase + s1 * x[0]);
+	dsp_real o2 = dsp_sin(o[2].phase + s1 * x[3]);
 
 	*wsa = (o0 + s3 * x[1]) * x[2];
 	*wsb = (o2 + s3 * x[4]) * x[5];
@@ -565,14 +565,14 @@ static void route00(dsp_osc_t o[4], const double x[6],
  * WSB: Osc4→Ind4→Osc3, with Osc4 side-chain×Ind5, scaled by Ind6.
  * Each modulator dedicated to one path. */
 
-static void route01(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route01(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s1 = sin(o[1].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s1 = dsp_sin(o[1].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + s1 * x[0]);
-	double o2 = sin(o[2].phase + s3 * x[3]);
+	dsp_real o0 = dsp_sin(o[0].phase + s1 * x[0]);
+	dsp_real o2 = dsp_sin(o[2].phase + s3 * x[3]);
 
 	*wsa = (o0 + s1 * x[1]) * x[2];
 	*wsb = (o2 + s3 * x[4]) * x[5];
@@ -583,15 +583,15 @@ static void route01(dsp_osc_t o[4], const double x[6],
  * WSB: Osc4→Ind4→Osc3, scaled by Ind6.
  * Osc1→Ind5→Osc4 feedback loop creates complex spectra. */
 
-static void route02(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route02(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s0 = sin(o[0].phase);
-	double s2 = sin(o[2].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s0 = dsp_sin(o[0].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + sin(o[1].phase + s2 * x[1]) * x[0]);
-	double o2 = sin(o[2].phase + s3 * x[3]);
+	dsp_real o0 = dsp_sin(o[0].phase + dsp_sin(o[1].phase + s2 * x[1]) * x[0]);
+	dsp_real o2 = dsp_sin(o[2].phase + s3 * x[3]);
 
 	/* Osc1→Ind5→Osc4: use s0 for modulation */
 	(void)s0;
@@ -606,14 +606,14 @@ static void route02(dsp_osc_t o[4], const double x[6],
  * Osc4 appears directly in both outputs.
  * WSA: (Osc4 + Osc1×Ind1)×Ind3. WSB: (Osc4 + Osc2×Ind4)×Ind6. */
 
-static void route03(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route03(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s2 = sin(o[2].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + s2 * x[1]);
-	double o1 = sin(o[1].phase + s2 * x[4]);
+	dsp_real o0 = dsp_sin(o[0].phase + s2 * x[1]);
+	dsp_real o1 = dsp_sin(o[1].phase + s2 * x[4]);
 
 	*wsa = (s3 + o0 * x[0]) * x[2];
 	*wsb = (s3 + o1 * x[3]) * x[5];
@@ -624,15 +624,15 @@ static void route03(dsp_osc_t o[4], const double x[6],
  * WSB: Ind6 alone (pure envelope, no oscillator). Ind1 unused.
  * Osc3, Osc4 computed but not routed to output. */
 
-static void route04(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route04(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s0 = sin(o[0].phase);
-	double s2 = sin(o[2].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s0 = dsp_sin(o[0].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + sin(o[1].phase) * x[1]);
-	double o1_mod = (s2 + s3) * x[3] + s0 * x[4];
+	dsp_real o0 = dsp_sin(o[0].phase + dsp_sin(o[1].phase) * x[1]);
+	dsp_real o1_mod = (s2 + s3) * x[3] + s0 * x[4];
 
 	(void)o1_mod;
 
@@ -644,15 +644,15 @@ static void route04(dsp_osc_t o[4], const double x[6],
  * WSA: Osc4→Ind2→Osc1, mixed with Osc2 side-chain, scaled by Ind3×Ind1.
  * WSB: Osc2→Ind5→Osc3, mixed with Osc4 side-chain, scaled by Ind6×Ind4. */
 
-static void route05(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route05(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s3 = sin(o[3].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + s3 * x[1]);
-	double o2 = sin(o[2].phase + sin(o[1].phase) * x[4]);
+	dsp_real o0 = dsp_sin(o[0].phase + s3 * x[1]);
+	dsp_real o2 = dsp_sin(o[2].phase + dsp_sin(o[1].phase) * x[4]);
 
-	*wsa = (sin(o[1].phase) + o0 * x[0]) * x[2];
+	*wsa = (dsp_sin(o[1].phase) + o0 * x[0]) * x[2];
 	*wsb = (s3 + o2 * x[3]) * x[5];
 }
 
@@ -660,14 +660,14 @@ static void route05(dsp_osc_t o[4], const double x[6],
  * Osc3→Ind1→Osc2→Ind2→Osc1, with Osc4×Ind4 added.
  * Both WSA (×Ind3) and WSB (×Ind6) receive the same signal. Ind5 unused. */
 
-static void route06(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route06(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s2 = sin(o[2].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o1 = sin(o[1].phase + s2 * x[0]);
-	double o0 = sin(o[0].phase + o1 * x[1] + s3 * x[3]);
+	dsp_real o1 = dsp_sin(o[1].phase + s2 * x[0]);
+	dsp_real o0 = dsp_sin(o[0].phase + o1 * x[1] + s3 * x[3]);
 
 	*wsa = o0 * x[2];
 	*wsb = o0 * x[5];
@@ -678,13 +678,13 @@ static void route06(dsp_osc_t o[4], const double x[6],
  * WSB: Osc4 with self-modulation×Ind5, scaled by Ind6.
  * Osc2 has Osc4 FM + self-feedback but not routed to output. Osc3 unused. */
 
-static void route07(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route07(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s3 = sin(o[3].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o1 = sin(o[1].phase + s3 * x[0] + sin(o[1].phase) * x[1]);
-	double o0 = sin(o[0].phase + s3 * x[3]);
+	dsp_real o1 = dsp_sin(o[1].phase + s3 * x[0] + dsp_sin(o[1].phase) * x[1]);
+	dsp_real o0 = dsp_sin(o[0].phase + s3 * x[3]);
 
 	(void)o1;
 
@@ -697,14 +697,14 @@ static void route07(dsp_osc_t o[4], const double x[6],
  * WSB: Osc4 mixed with Osc1×Ind5, scaled by Ind6.
  * Osc3→Ind4→Osc2 feedback alters the FM spectrum. */
 
-static void route08(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route08(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s0 = sin(o[0].phase);
-	double s2 = sin(o[2].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s0 = dsp_sin(o[0].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + sin(o[1].phase) * x[1]);
+	dsp_real o0 = dsp_sin(o[0].phase + dsp_sin(o[1].phase) * x[1]);
 
 	o[1].phase += s2 * x[3]; /* Osc3→Ind4→Osc2 */
 
@@ -718,16 +718,16 @@ static void route08(dsp_osc_t o[4], const double x[6],
  * Osc1→Ind5→Osc4 and Osc3→Ind2→Osc2 form two feedback loops
  * creating chaotic, evolving timbres. */
 
-static void route09(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route09(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s0 = sin(o[0].phase);
-	double s1 = sin(o[1].phase);
-	double s2 = sin(o[2].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s0 = dsp_sin(o[0].phase);
+	dsp_real s1 = dsp_sin(o[1].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + s3 * x[0]);
-	double o2 = sin(o[2].phase + s1 * x[3]);
+	dsp_real o0 = dsp_sin(o[0].phase + s3 * x[0]);
+	dsp_real o2 = dsp_sin(o[2].phase + s1 * x[3]);
 
 	/* feedback: Osc1→Osc4, Osc3→Osc2 */
 	o[3].phase += s0 * x[4];
@@ -742,15 +742,15 @@ static void route09(dsp_osc_t o[4], const double x[6],
  * WSA: Osc1 + Osc3 side-chain×Ind1, scaled by Ind3.
  * WSB: Osc3 + Osc1 side-chain×Ind4, scaled by Ind6. Osc4 unused. */
 
-static void route10(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route10(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s0 = sin(o[0].phase);
-	double s1 = sin(o[1].phase);
-	double s2 = sin(o[2].phase);
+	dsp_real s0 = dsp_sin(o[0].phase);
+	dsp_real s1 = dsp_sin(o[1].phase);
+	dsp_real s2 = dsp_sin(o[2].phase);
 
-	double o0 = sin(o[0].phase + s1 * x[1]);
-	double o2 = sin(o[2].phase + s1 * x[4]);
+	dsp_real o0 = dsp_sin(o[0].phase + s1 * x[1]);
+	dsp_real o2 = dsp_sin(o[2].phase + s1 * x[4]);
 
 	*wsa = (o0 + s2 * x[0]) * x[2];
 	*wsb = (o2 + s0 * x[3]) * x[5];
@@ -762,17 +762,17 @@ static void route10(dsp_osc_t o[4], const double x[6],
  * WSB: Osc1 + Osc2×Ind2, scaled by Ind6.
  * Three oscillators contribute as side-chains. */
 
-static void route11(dsp_osc_t o[4], const double x[6],
-		double *wsa, double *wsb)
+static void route11(dsp_osc_t o[4], const dsp_real x[6],
+		dsp_real *wsa, dsp_real *wsb)
 {
-	double s0 = sin(o[0].phase);
-	double s1 = sin(o[1].phase);
-	double s3 = sin(o[3].phase);
+	dsp_real s0 = dsp_sin(o[0].phase);
+	dsp_real s1 = dsp_sin(o[1].phase);
+	dsp_real s3 = dsp_sin(o[3].phase);
 
-	double o0 = sin(o[0].phase + s1 * x[4]); /* Osc3→Ind5→Osc1 (using s1 as placeholder) */
+	dsp_real o0 = dsp_sin(o[0].phase + s1 * x[4]); /* Osc3→Ind5→Osc1 (using s1 as placeholder) */
 
 	/* Osc3 actually modulates Osc1 in config 11 */
-	o0 = sin(o[0].phase + sin(o[2].phase) * x[4]);
+	o0 = dsp_sin(o[0].phase + dsp_sin(o[2].phase) * x[4]);
 
 	*wsa = (o0 + s0 * x[0] + s3 * x[3]) * x[2];
 	*wsb = (o0 + s1 * x[1]) * x[5];
@@ -794,18 +794,21 @@ static const fm_route_fn fm_routes[12] = {
  * envelopes but eliminates int16_t quantization staircase.
  */
 
-#define SMOOTH_COEFF     0.05
-#define CV2_SMOOTH_COEFF 0.003  /* ~7ms at 48kHz — interpolates between fader messages */
+#define SMOOTH_COEFF_48K     0.05
+#define CV2_SMOOTH_COEFF_48K 0.003  /* ~7ms at 48kHz — interpolates between fader messages */
 
-static inline double smooth_val(dsp_func_t *fn)
+static inline dsp_real smooth_val(dsp_func_t *fn)
 {
-	fn->cv2_smooth += ((double)fn->cv2 - fn->cv2_smooth) * CV2_SMOOTH_COEFF;
-	double target = (double)fn->current + (double)fn->cv1 + fn->cv2_smooth;
+	/* scale coefficients for actual sample rate (tuned for 48kHz) */
+	dsp_real rate_scale = 48000.0 / g_dsp.sample_rate;
+	dsp_real cv2_coeff = CV2_SMOOTH_COEFF_48K * rate_scale;
+	dsp_real coeff = SMOOTH_COEFF_48K * rate_scale;
 
-	double coeff = SMOOTH_COEFF;
+	fn->cv2_smooth += ((dsp_real)fn->cv2 - fn->cv2_smooth) * cv2_coeff;
+	dsp_real target = (dsp_real)fn->current + (dsp_real)fn->cv1 + fn->cv2_smooth;
 
 	if (fpu_time_scale > 0.01) {
-		coeff = SMOOTH_COEFF / fpu_time_scale;
+		coeff = coeff / (dsp_real)fpu_time_scale;
 	}
 
 	fn->dsp_smooth += (target - fn->dsp_smooth) * coeff;
@@ -813,13 +816,13 @@ static inline double smooth_val(dsp_func_t *fn)
 	return fn->dsp_smooth;
 }
 
-static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
+static void dsp_voice_render(dsp_voice_t *v, dsp_real *left, dsp_real *right)
 {
-	double sr = g_dsp.sample_rate;
+	dsp_real sr = g_dsp.sample_rate;
 
 	/* extract smoothed parameters from function current values */
 
-	double freq_hz[4];
+	dsp_real freq_hz[4];
 
 	freq_hz[0] = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FREQ1]));
 	freq_hz[1] = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FREQ2]));
@@ -829,29 +832,29 @@ static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
 	/* level: outseg maps 0-1000 → -32000..+32000 (center = 0).
 	 * Remap to 0..1: (val/32000 + 1) * 0.5 */
 
-	double level = smooth_val(&v->funcs[FN_LEVEL]) / 32000.0;
+	dsp_real level = smooth_val(&v->funcs[FN_LEVEL]) / 32000.0;
 
-	level = fmax(0.0, fmin(1.0, (level + 1.0) * 0.5));
+	level = dsp_fmax(0.0, dsp_fmin(1.0, (level + 1.0) * 0.5));
 
 	/* location (panning): -32000..+32000 → -1..+1 */
 
-	double locn = smooth_val(&v->funcs[FN_LOCN]) / 32000.0;
+	dsp_real locn = smooth_val(&v->funcs[FN_LOCN]) / 32000.0;
 
-	locn = fmax(-1.0, fmin(1.0, locn));
+	locn = dsp_fmax(-1.0, dsp_fmin(1.0, locn));
 
 	/* filter resonance: 0..32000 → 0..1 */
 
-	double filtrq = fmax(0.0, smooth_val(&v->funcs[FN_FILTRQ]) / 32000.0);
+	dsp_real filtrq = dsp_fmax(0.0, smooth_val(&v->funcs[FN_FILTRQ]) / 32000.0);
 
-	filtrq = fmin(filtrq, 0.99);
+	filtrq = dsp_fmin(filtrq, 0.99);
 
 	/* dynamics: 0..32000 → 0..1 */
 
-	double dynam = fmax(0.0, smooth_val(&v->funcs[FN_DYNAM]) / 32000.0);
+	dsp_real dynam = dsp_fmax(0.0, smooth_val(&v->funcs[FN_DYNAM]) / 32000.0);
 
 	/* FM modulation indices: ±32000 → normalised */
 
-	double idx[6];
+	dsp_real idx[6];
 
 	idx[0] = smooth_val(&v->funcs[FN_INDEX1]) / 32000.0;
 	idx[1] = smooth_val(&v->funcs[FN_INDEX2]) / 32000.0;
@@ -862,7 +865,7 @@ static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
 
 	/* filter cutoff: pitch value in half-cents → Hz */
 
-	double filter_hz = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FILTER]));
+	dsp_real filter_hz = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FILTER]));
 
 	/* update oscillator phase increments */
 
@@ -872,7 +875,7 @@ static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
 
 	/* apply FM routing */
 
-	double wsa_in = 0.0, wsb_in = 0.0;
+	dsp_real wsa_in = 0.0, wsb_in = 0.0;
 	int32_t cfg = v->config;
 
 	if (cfg < 0 || cfg >= 12) {
@@ -897,16 +900,16 @@ static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
 
 	/* waveshaper lookup */
 
-	double wsa_out = waveshaper_lookup(wsa_in, v->wsa, DSP_WS_COUNT);
-	double wsb_out = waveshaper_lookup(wsb_in, v->wsb, DSP_WS_COUNT);
+	dsp_real wsa_out = waveshaper_lookup(wsa_in, v->wsa, DSP_WS_COUNT);
+	dsp_real wsb_out = waveshaper_lookup(wsb_in, v->wsb, DSP_WS_COUNT);
 
 	/* mix WSA and WSB */
 
-	double mixed = (wsa_out + wsb_out) * 0.2;
+	dsp_real mixed = (wsa_out + wsb_out) * 0.2;
 
 	/* 4-pole filter */
 
-	double filtered = filter_process_full(&v->filter, mixed,
+	dsp_real filtered = filter_process_full(&v->filter, mixed,
 			filter_hz, filtrq, sr);
 
 	/* DC blocker */
@@ -915,13 +918,13 @@ static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
 
 	/* equal-power panning */
 
-	double pan = (locn + 1.0) * 0.5; /* 0..1 */
-	double lg = cos(pan * M_PI * 0.5);
-	double rg = sin(pan * M_PI * 0.5);
+	dsp_real pan = (locn + 1.0) * 0.5; /* 0..1 */
+	dsp_real lg = dsp_cos(pan * DSP_PI * 0.5);
+	dsp_real rg = dsp_sin(pan * DSP_PI * 0.5);
 
 	/* anti-click ramp */
 
-	double gain = level * dynam;
+	dsp_real gain = level * dynam;
 	bool is_active = gain > 0.001;
 
 	if (is_active && !v->was_active) {
@@ -953,13 +956,13 @@ static void dsp_voice_render(dsp_voice_t *v, double *left, double *right)
 void dsp_init(void)
 {
 	memset(&g_dsp, 0, sizeof g_dsp);
-	g_dsp.sample_rate = (double)DSP_SAMPLE_RATE;
+	g_dsp.sample_rate = (dsp_real)DSP_SAMPLE_RATE;
 
 	/* initialise waveshape tables to linear pass-through */
 
 	for (int32_t v = 0; v < DSP_VOICES; ++v) {
 		for (int32_t i = 0; i < DSP_WS_COUNT; ++i) {
-			double x = ((double)i / (double)(DSP_WS_COUNT - 1)) * 2.0 - 1.0;
+			dsp_real x = ((dsp_real)i / (dsp_real)(DSP_WS_COUNT - 1)) * 2.0 - 1.0;
 
 			g_dsp.voices[v].wsa[i] = (int16_t)(x * 32000.0);
 			g_dsp.voices[v].wsb[i] = (int16_t)(x * 32000.0);
@@ -971,16 +974,16 @@ void dsp_init(void)
 	exciter_init(&g_dsp.exciter, g_dsp.sample_rate);
 }
 
-static double test_phase = 0.0;
+static dsp_real test_phase = 0.0;
 
 void dsp_render(float *buf, int32_t frames)
 {
 	for (int32_t i = 0; i < frames; ++i) {
-		double left = 0.0, right = 0.0;
+		dsp_real left = 0.0, right = 0.0;
 
 		if (dsp_test_tone) {
 			/* 440 Hz sine at -12 dB for audio path testing */
-			double s = sin(test_phase) * 0.25;
+			dsp_real s = dsp_sin(test_phase) * 0.25;
 
 			test_phase += TWO_PI * 440.0 / g_dsp.sample_rate;
 
@@ -993,7 +996,7 @@ void dsp_render(float *buf, int32_t frames)
 		}
 		else {
 			for (int32_t v = 0; v < DSP_VOICES; ++v) {
-				double vl = 0.0, vr = 0.0;
+				dsp_real vl = 0.0, vr = 0.0;
 
 				dsp_voice_render(&g_dsp.voices[v], &vl, &vr);
 				left += vl;
@@ -1008,16 +1011,16 @@ void dsp_render(float *buf, int32_t frames)
 		/* phase shifter — read params from spare function of voices 1-3 */
 		/* MIDAS sends: (param_0_99 * 10) << 5, max = 31680 */
 
-		double ps_int = fmax(0.0, g_dsp.voices[1].funcs[FN_SPARE].dsp_smooth)
+		dsp_real ps_int = dsp_fmax(0.0, g_dsp.voices[1].funcs[FN_SPARE].dsp_smooth)
 				/ PS_MAX_RAW;
-		double ps_rate = fmax(0.0, g_dsp.voices[2].funcs[FN_SPARE].dsp_smooth)
+		dsp_real ps_rate = dsp_fmax(0.0, g_dsp.voices[2].funcs[FN_SPARE].dsp_smooth)
 				/ PS_MAX_RAW;
-		double ps_dep = fmax(0.0, g_dsp.voices[3].funcs[FN_SPARE].dsp_smooth)
+		dsp_real ps_dep = dsp_fmax(0.0, g_dsp.voices[3].funcs[FN_SPARE].dsp_smooth)
 				/ PS_MAX_RAW;
 
 		/* rate: 0..1 → 0.1..5.0 Hz */
 
-		double rate_hz = 0.1 + ps_rate * 4.9;
+		dsp_real rate_hz = 0.1 + ps_rate * 4.9;
 
 		pshift_process(&g_dsp.pshift, &left, &right,
 				ps_int, rate_hz, ps_dep, g_dsp.sample_rate);
@@ -1028,8 +1031,8 @@ void dsp_render(float *buf, int32_t frames)
 
 		/* soft clamp */
 
-		left = fmax(-1.0, fmin(1.0, left));
-		right = fmax(-1.0, fmin(1.0, right));
+		left = dsp_fmax(-1.0, dsp_fmin(1.0, left));
+		right = dsp_fmax(-1.0, dsp_fmin(1.0, right));
 
 		buf[i * 2 + 0] = (float)left;
 		buf[i * 2 + 1] = (float)right;
