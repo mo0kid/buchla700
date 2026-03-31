@@ -13,3 +13,5 @@ buchla-emu/buchla.disk
 # iPad controller build artifacts
 buchla-ctl/build/
 buchla-ctl/build_ios/
+buchla-rpi/buildroot/output/
+buchla-rpi-binary
