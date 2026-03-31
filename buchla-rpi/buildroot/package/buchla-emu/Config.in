@@ -1,0 +1,9 @@
+config BR2_PACKAGE_BUCHLA_EMU
+	bool "buchla-emu"
+	depends on BR2_PACKAGE_SDL2
+	depends on BR2_PACKAGE_SDL2_NET
+	depends on BR2_PACKAGE_SDL2_TTF
+	depends on BR2_PACKAGE_ALSA_LIB
+	depends on BR2_PACKAGE_RTMIDI
+	help
+	  Buchla 700 synthesizer emulator.

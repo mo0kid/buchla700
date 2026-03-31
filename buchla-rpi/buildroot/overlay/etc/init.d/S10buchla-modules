@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# Load kernel modules needed by the Buchla 700 emulator.
+# BusyBox modprobe can't handle .ko.xz, so we use modprobe -q
+# and fall back to manual xz + insmod if needed.
+#
+
+KVER=$(uname -r)
+MDIR="/lib/modules/$KVER/kernel"
+
+load_mod() {
+    modprobe -q "$1" 2>/dev/null && return 0
+    # BusyBox modprobe can't decompress xz — do it manually
+    MOD=$(find "$MDIR" -name "${1}.ko.xz" -o -name "${1}.ko" 2>/dev/null | head -1)
+    [ -z "$MOD" ] && return 1
+    case "$MOD" in
+        *.xz) xz -dk "$MOD" 2>/dev/null; insmod "${MOD%.xz}" 2>/dev/null ;;
+        *)    insmod "$MOD" 2>/dev/null ;;
+    esac
+}
+
+case "$1" in
+start)
+    printf "Loading modules: "
+    # DRM core
+    load_mod drm
+    load_mod drm_kms_helper
+    # VideoCore IV display
+    load_mod vc4
+    # Audio
+    load_mod snd-bcm2835
+    echo "done"
+    ;;
+stop)
+    ;;
+*)
+    echo "Usage: $0 {start|stop}"
+    ;;
+esac

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Copy config overrides from boot partition (FAT32, editable on Mac)
+case "$1" in
+start)
+    mkdir -p /boot
+    mount /dev/mmcblk0p1 /boot 2>/dev/null
+
+    # Override asound.conf
+    [ -f /boot/asound.conf ] && cp /boot/asound.conf /etc/asound.conf
+
+    # Override init script
+    [ -f /boot/S99buchla ] && cp /boot/S99buchla /etc/init.d/S99buchla && chmod +x /etc/init.d/S99buchla
+
+    # Override any env vars for the emulator
+    [ -f /boot/buchla.env ] && . /boot/buchla.env
+
+    umount /boot 2>/dev/null
+    ;;
+esac

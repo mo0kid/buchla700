@@ -1,0 +1,28 @@
+start_file=start.elf
+fixup_file=fixup.dat
+
+kernel=Image
+
+disable_overscan=1
+
+# GPU memory
+gpu_mem_256=100
+gpu_mem_512=100
+gpu_mem_1024=100
+
+# Enable 64-bit
+arm_64bit=1
+
+# Enable VC4 full KMS display driver (creates /dev/dri/card0)
+dtoverlay=vc4-kms-v3d
+
+# Force HDMI output even if no monitor detected at boot
+hdmi_force_hotplug=1
+hdmi_group=1
+hdmi_mode=16
+
+# Enable audio via headphone jack
+dtparam=audio=on
+
+# UART for serial console
+dtoverlay=miniuart-bt

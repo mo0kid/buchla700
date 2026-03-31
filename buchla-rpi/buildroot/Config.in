@@ -1,0 +1,2 @@
+source "$BR2_EXTERNAL_BUCHLA_PATH/package/buchla-emu/Config.in"
+source "$BR2_EXTERNAL_BUCHLA_PATH/package/rtmidi/Config.in"

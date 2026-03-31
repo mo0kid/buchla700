@@ -1,0 +1,89 @@
+#!/bin/sh
+
+case "$1" in
+start)
+	# Wait for audio device
+	timeout=50
+	while [ ! -e /dev/snd/pcmC0D0p ] && [ $timeout -gt 0 ]; do
+		sleep 0.1
+		timeout=$((timeout - 1))
+	done
+
+	# Mount boot partition for logging
+	mkdir -p /boot
+	mount /dev/mmcblk0p1 /boot 2>/dev/null
+	LOG=/boot/buchla.log
+
+	# Clear console
+	echo 0 > /sys/class/graphics/fbcon/cursor_blink 2>/dev/null
+	echo -e '\033[2J\033[H' > /dev/tty1 2>/dev/null
+
+	# Set headphone volume
+	amixer -c 1 sset Headphone 100% unmute >> $LOG 2>&1
+	amixer -c 1 sset PCM 100% unmute >> $LOG 2>&1
+
+	echo "=== Buchla 700 boot $(date) ===" >> $LOG
+
+	# ---- Network debug ----
+	echo "--- network ---" >> $LOG
+	ip addr >> $LOG 2>&1
+	ip route >> $LOG 2>&1
+	echo "--- dropbear ---" >> $LOG
+	which dropbear >> $LOG 2>&1
+	ls -la /usr/sbin/dropbear >> $LOG 2>&1
+	ps | grep dropbear >> $LOG 2>&1
+	# If dropbear isn't running, start it manually
+	if ! pidof dropbear > /dev/null 2>&1; then
+		echo "starting dropbear manually" >> $LOG
+		dropbear -R >> $LOG 2>&1
+	fi
+	echo "--- ALSA plug plugin ---" >> $LOG
+	ls -la /usr/lib/alsa-lib/libasound_module_pcm_* >> $LOG 2>&1
+
+	# ---- Input devices ----
+	echo "--- input devices ---" >> $LOG
+	ls -la /dev/input/ >> $LOG 2>&1
+	cat /proc/bus/input/devices >> $LOG 2>&1
+
+	# Audio mixer state
+	echo "--- amixer card 1 ---" >> $LOG
+	amixer -c 1 contents >> $LOG 2>&1
+
+	# Sound devices
+	echo "--- /dev/snd/ ---" >> $LOG
+	ls -la /dev/snd/ >> $LOG 2>&1
+
+	# Test audio device opens
+	echo "--- aplay test ---" >> $LOG
+	aplay -D hw:1,0 -d 1 /dev/zero >> $LOG 2>&1 &
+	APLAY_PID=$!
+	sleep 2
+	kill $APLAY_PID 2>/dev/null
+
+	cd /opt/buchla
+	echo "--- starting buchla ---" >> $LOG
+	/usr/bin/buchla -a >> $LOG 2>&1 &
+	echo "buchla pid: $!" >> $LOG
+	sync
+
+	# Check after 5s
+	sleep 5
+	echo "--- after 5s ---" >> $LOG
+	ps >> $LOG 2>&1
+	echo "--- cpu ---" >> $LOG
+	cat /proc/loadavg >> $LOG 2>&1
+	sync
+	;;
+stop)
+	killall buchla 2>/dev/null
+	;;
+restart)
+	$0 stop
+	sleep 1
+	$0 start
+	;;
+*)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+	;;
+esac

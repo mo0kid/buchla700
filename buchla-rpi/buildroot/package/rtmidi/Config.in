@@ -1,0 +1,8 @@
+config BR2_PACKAGE_RTMIDI
+	bool "rtmidi"
+	depends on BR2_PACKAGE_ALSA_LIB
+	depends on BR2_INSTALL_LIBSTDCPP
+	help
+	  RtMidi - realtime MIDI input/output library.
+
+	  https://github.com/thestk/rtmidi
