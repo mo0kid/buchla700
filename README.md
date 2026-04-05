@@ -1,5 +1,7 @@
 # Buchla 700
 
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/djw_audio)
+
 A software emulation of the [Buchla 700](https://en.wikipedia.org/wiki/Buchla_electronic_musical_instruments) digital music synthesizer (1989), paired with an iPad touch controller that communicates over OSC.
 
 The project consists of three components:
