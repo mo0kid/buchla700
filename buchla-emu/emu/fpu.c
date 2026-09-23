@@ -121,6 +121,9 @@ static void fpu_write_func(uint32_t off, uint32_t val)
 			break;
 		}
 
+		/* ratio bit is active low; only meaningful for Freq 2-4 */
+		fn->ratio = (uval & FPU_RAT) == 0;
+
 		if (uval & FPU_UPD) {
 			/* determine which value register has the new target */
 			int16_t new_val;

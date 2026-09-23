@@ -84,6 +84,10 @@ typedef double dsp_real;
 #define FN_INDEX5  14
 #define FN_INDEX6  15
 
+/* maximum FPU pitch value, in half-cents (PITCHMAX in the firmware) */
+
+#define DSP_PITCH_MAX 21920
+
 /* FPU control word bits */
 
 #define FPU_UPD    0x0001   /* update bit (start interpolation) */
@@ -129,6 +133,7 @@ typedef struct {
 	int32_t  remaining;     /* interpolation steps remaining */
 	bool     active;        /* interpolation in progress */
 	bool     int_enable;    /* generate interrupt on completion */
+	bool     ratio;         /* FPU_RAT clear: pitch is an offset from Freq 1 */
 
 	/* shadow register state */
 

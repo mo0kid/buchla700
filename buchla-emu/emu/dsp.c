@@ -824,10 +824,28 @@ static void dsp_voice_render(dsp_voice_t *v, dsp_real *left, dsp_real *right)
 
 	dsp_real freq_hz[4];
 
-	freq_hz[0] = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FREQ1]));
-	freq_hz[1] = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FREQ2]));
-	freq_hz[2] = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FREQ3]));
-	freq_hz[3] = pitch_to_hz((int16_t)smooth_val(&v->funcs[FN_FREQ4]));
+	/* in ratio mode (Int / Rat), Freq 2-4 carry only an offset that the
+	 * FPU hardware adds to Freq 1's pitch */
+
+	static const int32_t freq_fn[4] = { FN_FREQ1, FN_FREQ2, FN_FREQ3, FN_FREQ4 };
+	dsp_real pitch1 = smooth_val(&v->funcs[FN_FREQ1]);
+
+	freq_hz[0] = pitch_to_hz((int16_t)pitch1);
+
+	for (int32_t i = 1; i < 4; ++i) {
+		dsp_func_t *fn = &v->funcs[freq_fn[i]];
+		dsp_real pitch = smooth_val(fn);
+
+		if (fn->ratio) {
+			pitch += pitch1;
+
+			if (pitch > DSP_PITCH_MAX) {
+				pitch = DSP_PITCH_MAX;
+			}
+		}
+
+		freq_hz[i] = pitch_to_hz((int16_t)pitch);
+	}
 
 	/* level: outseg maps 0-1000 → -32000..+32000 (center = 0).
 	 * Remap to 0..1: (val/32000 + 1) * 0.5 */
